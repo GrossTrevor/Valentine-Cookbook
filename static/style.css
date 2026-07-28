@@ -1,0 +1,584 @@
+/* Valentine Cookbook
+   Plain on purpose. Big text, high contrast, generous targets, one accent
+   colour. Everything here is sized in rem so the A+/A- buttons scale the whole
+   page by changing the root font size. */
+
+:root {
+  --paper:      #fbf9f5;
+  --card:       #ffffff;
+  --ink:        #1f1c1a;
+  --ink-soft:   #55504b;
+  --line:       #ddd6ca;
+  --accent:     #8a2733;
+  --accent-ink: #ffffff;
+  --accent-bg:  #f6ecea;
+  --good-bg:    #e9f2e6;
+  --good-line:  #4e7a3f;
+  --bad-bg:     #fbeaea;
+  --bad-line:   #9d2f2f;
+  --info-bg:    #eaf0f6;
+  --info-line:  #3a628c;
+  --radius: 8px;
+  font-size: 19px;
+}
+
+html[data-size="1"] { font-size: 21px; }
+html[data-size="2"] { font-size: 24px; }
+html[data-size="3"] { font-size: 28px; }
+html[data-size="-1"] { font-size: 17px; }
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: var(--paper);
+  color: var(--ink);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  font-size: 1rem;
+  line-height: 1.6;
+}
+
+h1, h2, h3, .brand { font-family: Georgia, "Times New Roman", serif; font-weight: 700; }
+h1 { font-size: 2rem; line-height: 1.2; margin: 0 0 .5rem; }
+h2 { font-size: 1.45rem; line-height: 1.25; margin: 2rem 0 .75rem; }
+h3 { font-size: 1.15rem; margin: 0 0 .35rem; }
+
+a { color: var(--accent); }
+a:hover { text-decoration: none; }
+
+:focus-visible {
+  outline: 3px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.wrap { max-width: 62rem; margin: 0 auto; padding: 0 1rem; }
+.narrow { max-width: 40rem; margin: 0 auto; }
+.center { text-align: center; }
+
+.visually-hidden, .hp {
+  position: absolute !important;
+  width: 1px; height: 1px;
+  overflow: hidden; clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+.skip {
+  position: absolute; left: -999px;
+  background: var(--accent); color: var(--accent-ink);
+  padding: .75rem 1rem; z-index: 10;
+}
+.skip:focus { left: .5rem; top: .5rem; }
+
+/* --- header --------------------------------------------------------- */
+
+.site-header {
+  background: var(--card);
+  border-bottom: 2px solid var(--line);
+  padding: .75rem 0;
+}
+.header-inner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: .75rem 1rem;
+}
+.brand {
+  font-size: 1.35rem;
+  color: var(--ink);
+  text-decoration: none;
+  display: flex; align-items: center; gap: .5rem;
+  white-space: nowrap;
+}
+.brand-mark { color: var(--accent); }
+
+.search {
+  display: flex;
+  flex: 1 1 18rem;
+  min-width: 14rem;
+  gap: .4rem;
+}
+.search input {
+  flex: 1;
+  min-width: 0;
+}
+.site-nav {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: .4rem;
+}
+.text-size { display: flex; gap: .25rem; }
+
+/* On a phone the header must not push the recipes off the screen, but the
+   buttons still have to stay comfortably tappable, so only the padding and
+   the gaps shrink -- never the body text. */
+@media (max-width: 34rem) {
+  .site-header { padding: .5rem 0; }
+  .header-inner { gap: .5rem; }
+  .brand { font-size: 1.2rem; }
+  .site-nav { gap: .3rem; width: 100%; }
+  /* 2.6rem is about 49px, still comfortably above a 44px tap target. */
+  .site-nav .btn { padding: .35rem .6rem; font-size: .92rem; min-height: 2.6rem; }
+  .search input, .search button { min-height: 2.7rem; }
+  h1 { font-size: 1.7rem; }
+  .filter-label { min-width: 100%; }
+}
+
+/* --- controls -------------------------------------------------------- */
+
+input[type="text"], input[type="search"], input[type="email"],
+input[type="number"], textarea, select {
+  font: inherit;
+  color: var(--ink);
+  background: #fff;
+  border: 2px solid var(--line);
+  border-radius: var(--radius);
+  padding: .6rem .7rem;
+  min-height: 2.9rem;
+  width: 100%;
+  max-width: 100%;
+}
+textarea { min-height: 8rem; line-height: 1.5; resize: vertical; }
+input:focus, textarea:focus, select:focus { border-color: var(--accent); }
+
+.btn, button {
+  font: inherit;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: .35rem;
+  min-height: 2.9rem;
+  padding: .5rem 1rem;
+  border: 2px solid var(--line);
+  border-radius: var(--radius);
+  background: #fff;
+  color: var(--ink);
+  text-decoration: none;
+  cursor: pointer;
+}
+.btn:hover, button:hover { background: #f2ede5; }
+.btn-primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--accent-ink);
+}
+.btn-primary:hover { background: #6f1e29; }
+.btn-quiet { background: transparent; border-color: transparent; color: var(--ink-soft); }
+.btn-quiet:hover { background: #efeae1; }
+.btn-big { font-size: 1.15rem; padding: .9rem 1.6rem; min-height: 3.4rem; }
+.btn-small { min-height: 2.3rem; padding: .25rem .7rem; font-size: .9rem; }
+.inline { display: inline; }
+
+.link-button {
+  background: none; border: none; padding: 0; min-height: 0;
+  color: var(--ink-soft); text-decoration: underline; font-size: .9rem;
+  cursor: pointer;
+}
+.link-button:hover { background: none; color: var(--accent); }
+
+.round {
+  width: 3rem; min-width: 3rem; height: 3rem; padding: 0;
+  border-radius: 50%;
+  font-size: 1.4rem; font-weight: 700; line-height: 1;
+}
+
+/* --- flashes --------------------------------------------------------- */
+
+.flashes { margin: 1rem 0 0; }
+.flash {
+  margin: 0 0 .5rem;
+  padding: .85rem 1rem;
+  border-left: 6px solid var(--info-line);
+  background: var(--info-bg);
+  border-radius: var(--radius);
+  font-size: 1.05rem;
+}
+.flash-success { border-color: var(--good-line); background: var(--good-bg); }
+.flash-error   { border-color: var(--bad-line);  background: var(--bad-bg); }
+
+/* --- home ------------------------------------------------------------ */
+
+.hero { padding: 1.5rem 0 .5rem; }
+.lead { font-size: 1.1rem; color: var(--ink-soft); margin: 0 0 1rem; max-width: 42rem; }
+
+.filters {
+  background: var(--card);
+  border: 2px solid var(--line);
+  border-radius: var(--radius);
+  padding: 1rem;
+  margin: 1.25rem 0;
+}
+.filter-row { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem; margin-bottom: .75rem; }
+.filter-row:last-child { margin-bottom: 0; }
+.filter-label { font-weight: 700; min-width: 9rem; }
+.chips { display: flex; flex-wrap: wrap; gap: .4rem; }
+.chip {
+  display: inline-block;
+  padding: .35rem .75rem;
+  border: 2px solid var(--line);
+  border-radius: 999px;
+  background: #fff;
+  color: var(--ink);
+  text-decoration: none;
+  font-size: .95rem;
+}
+.chip:hover { background: #f2ede5; }
+.chip-on { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+.chip .count { opacity: .65; font-size: .85em; }
+.filter-row-inputs input[type="text"] { width: 12rem; }
+.filter-row-inputs select { width: auto; }
+
+.results-heading { margin-top: 1.5rem; }
+
+.cards {
+  list-style: none;
+  margin: 0; padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(17rem, 1fr));
+  gap: 1rem;
+}
+.card {
+  background: var(--card);
+  border: 2px solid var(--line);
+  border-radius: var(--radius);
+  padding: 1rem;
+}
+.card-with-photo { padding-top: 0; overflow: hidden; }
+.card-photo {
+  display: block;
+  margin: 0 -1rem .75rem;      /* bleed to the card edges */
+}
+.card-photo img {
+  display: block;
+  width: 100%;
+  height: 9.5rem;
+  object-fit: cover;
+  background: #efeae1;
+}
+.card h3 { font-size: 1.25rem; }
+.card h3 a { text-decoration: none; color: var(--ink); }
+.card h3 a:hover { color: var(--accent); text-decoration: underline; }
+.card-desc { margin: .25rem 0 .6rem; color: var(--ink-soft); }
+.card-meta { margin: .4rem 0; display: flex; flex-wrap: wrap; gap: .35rem; }
+.card-by { margin: .4rem 0 0; font-size: .9rem; color: var(--ink-soft); }
+
+.pill {
+  display: inline-block;
+  padding: .15rem .6rem;
+  border-radius: 999px;
+  background: var(--accent-bg);
+  color: #6f1e29;
+  font-size: .85rem;
+  text-decoration: none;
+}
+a.pill:hover { background: var(--accent); color: var(--accent-ink); }
+
+.empty, .empty-quiet {
+  background: var(--card);
+  border: 2px dashed var(--line);
+  border-radius: var(--radius);
+  padding: 1.5rem;
+  text-align: center;
+}
+.empty-quiet { text-align: left; color: var(--ink-soft); }
+
+/* --- recipe ---------------------------------------------------------- */
+
+/* "Stuffed French Toast à la Barb Valentine" -- the credit sits on its own
+   line, lighter and smaller, so the recipe name still reads as the title. */
+.ala {
+  display: block;
+  font-size: .55em;
+  font-style: italic;
+  font-weight: 400;
+  color: var(--ink-soft);
+  margin-top: .25rem;
+}
+
+.crumbs { margin: 1rem 0 .5rem; }
+.recipe-head { border-bottom: 2px solid var(--line); padding-bottom: 1rem; margin-bottom: 1.5rem; }
+.recipe-meta { display: flex; flex-wrap: wrap; gap: .4rem; margin: .5rem 0; }
+.recipe-by { color: var(--ink-soft); font-size: .95rem; margin: .5rem 0 0; }
+
+/* Photos are stored at 480p, so they are never asked to render larger than
+   they are -- an upscaled photo looks worse than a smaller one. */
+/* Photos run the full width of the page as one banner above the recipe. The
+   height comes down as the count goes up, so each photo keeps a sensible shape
+   instead of turning into a tall sliver at five across. Banner cells crop to
+   fill; clicking any photo opens the whole uncropped picture. */
+.photo-banner {
+  --banner-height: 15rem;
+  display: flex;
+  gap: 3px;
+  margin: 0 0 1.75rem;
+  border: 2px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--line);
+  overflow: hidden;
+}
+.photo-banner[data-count="1"] { --banner-height: 20rem; }
+.photo-banner[data-count="2"] { --banner-height: 18rem; }
+.photo-banner[data-count="3"] { --banner-height: 16rem; }
+.photo-banner[data-count="4"] { --banner-height: 14rem; }
+.photo-banner[data-count="5"] { --banner-height: 12.5rem; }
+
+.banner-photo {
+  flex: 1 1 0;
+  min-width: 0;              /* let the cells actually share the row evenly */
+  display: block;
+  line-height: 0;
+}
+.banner-photo img {
+  display: block;
+  width: 100%;
+  height: var(--banner-height);
+  object-fit: cover;
+  background: #efeae1;
+}
+.banner-photo:hover img { opacity: .88; }
+
+/* Five photos side by side on a phone would be five slivers, so they wrap.
+   Odd counts go three across and even counts two, which keeps every layout to
+   at most two rows -- the banner should introduce the recipe, not bury it. */
+@media (max-width: 40rem) {
+  .photo-banner { flex-wrap: wrap; gap: 2px; }
+  .photo-banner[data-count="1"] { --banner-height: 13rem; }
+  .photo-banner[data-count="2"] { --banner-height: 10rem; }
+  .photo-banner[data-count="3"] { --banner-height: 8rem; }
+  .photo-banner[data-count="4"] { --banner-height: 8rem; }
+  .photo-banner[data-count="5"] { --banner-height: 7.5rem; }
+  .banner-photo { flex: 1 1 45%; }
+  .photo-banner[data-count="3"] .banner-photo,
+  .photo-banner[data-count="5"] .banner-photo { flex: 1 1 30%; }
+}
+
+.photo-editor {
+  list-style: none;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  margin: 0 0 1.1rem;
+  padding: 0;
+}
+.photo-editor li {
+  border: 2px solid var(--line);
+  border-radius: var(--radius);
+  padding: .5rem;
+  background: var(--paper);
+}
+.photo-editor img {
+  display: block;
+  width: 10rem;
+  height: 7.5rem;
+  object-fit: cover;
+  border-radius: 4px;
+  background: #efeae1;
+}
+.photo-remove {
+  display: flex !important;
+  align-items: center;
+  gap: .4rem;
+  margin: .5rem 0 0 !important;
+  font-weight: 400 !important;
+  font-size: .9rem;
+}
+.photo-remove input { width: 1.2rem; height: 1.2rem; accent-color: var(--accent); }
+
+input[type="file"] {
+  font: inherit;
+  padding: .6rem;
+  border: 2px dashed var(--line);
+  border-radius: var(--radius);
+  background: #fff;
+  width: 100%;
+  min-height: 3.2rem;
+}
+
+.recipe-body {
+  display: grid;
+  grid-template-columns: minmax(18rem, 22rem) 1fr;
+  gap: 2.5rem;
+  align-items: start;
+}
+@media (max-width: 46rem) {
+  .recipe-body { grid-template-columns: 1fr; gap: 1.5rem; }
+}
+
+.ingredients-panel h2, .steps-panel h2 { margin-top: 0; }
+
+.scaler {
+  background: var(--card);
+  border: 2px solid var(--line);
+  border-radius: var(--radius);
+  padding: .9rem;
+  margin-bottom: 1rem;
+}
+.scaler-servings {
+  display: flex; align-items: center; flex-wrap: wrap; gap: .5rem;
+  margin-bottom: .75rem;
+}
+.scaler-title { font-weight: 700; }
+.serving-count {
+  font-family: Georgia, serif;
+  font-size: 1.5rem; font-weight: 700;
+  min-width: 2.5rem; text-align: center;
+}
+.scaler-presets { display: flex; flex-wrap: wrap; align-items: center; gap: .4rem; }
+.btn-scale { min-width: 4rem; }
+.btn-scale-on { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+.btn-scale-on:hover { background: #6f1e29; }
+.scaler-note { margin: .7rem 0 0; font-size: .95rem; color: var(--ink-soft); }
+
+.ingredients { list-style: none; margin: 0; padding: 0; }
+.ing-heading {
+  font-weight: 700;
+  font-family: Georgia, serif;
+  margin: 1rem 0 .35rem;
+  padding-bottom: .2rem;
+  border-bottom: 1px solid var(--line);
+}
+.ing { border-bottom: 1px solid #efeae1; }
+.ing label {
+  display: flex; align-items: baseline; gap: .6rem;
+  padding: .55rem .25rem;
+  cursor: pointer;
+}
+.ing label:hover { background: #f6f2ea; }
+.ing input[type="checkbox"] {
+  width: 1.3rem; height: 1.3rem;
+  flex: 0 0 auto;
+  accent-color: var(--accent);
+  align-self: center;
+}
+.ing input[type="checkbox"]:checked ~ .ing-text {
+  text-decoration: line-through;
+  color: var(--ink-soft);
+}
+.amount { font-weight: 700; }
+.amount.changed { background: #fdf3c9; border-radius: 4px; padding: 0 .2rem; }
+
+.steps { padding-left: 1.4rem; margin: 0; }
+.steps li { margin-bottom: 1rem; padding-left: .3rem; font-size: 1.05rem; }
+.steps li::marker { font-weight: 700; color: var(--accent); }
+
+.recipe-notes {
+  margin-top: 2rem;
+  background: var(--accent-bg);
+  border-radius: var(--radius);
+  padding: 1rem 1.2rem;
+}
+.recipe-notes h3 { margin-top: 0; }
+.recipe-notes p { margin: 0; white-space: pre-wrap; }
+
+.recipe-actions {
+  margin: 2rem 0 0;
+  padding-top: 1.25rem;
+  border-top: 2px solid var(--line);
+  display: flex; flex-wrap: wrap; gap: .5rem;
+}
+
+/* --- comments -------------------------------------------------------- */
+
+.notes-section { margin-top: 2.5rem; }
+.section-hint { color: var(--ink-soft); max-width: 40rem; }
+.comments { list-style: none; margin: 1rem 0; padding: 0; }
+.comment {
+  background: var(--card);
+  border: 2px solid var(--line);
+  border-radius: var(--radius);
+  padding: .9rem 1.1rem;
+  margin-bottom: .75rem;
+}
+.comment-head { margin: 0 0 .3rem; display: flex; gap: .6rem; align-items: baseline; flex-wrap: wrap; }
+.comment-date { color: var(--ink-soft); font-size: .9rem; }
+.comment-body { margin: 0 0 .3rem; white-space: pre-wrap; }
+.comment-form { max-width: 40rem; margin-top: 1rem; }
+.comment-form label { display: block; font-weight: 700; margin-bottom: .3rem; }
+.comment-form textarea { margin-bottom: .75rem; }
+.signin-nudge { margin-top: 1rem; }
+
+/* --- forms ----------------------------------------------------------- */
+
+.recipe-form, .signin-form { max-width: 58rem; }
+fieldset {
+  border: 2px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--card);
+  padding: 1rem 1.2rem 1.2rem;
+  margin: 0 0 1.5rem;
+}
+legend {
+  font-family: Georgia, serif;
+  font-weight: 700;
+  font-size: 1.2rem;
+  padding: 0 .4rem;
+}
+.field { margin-bottom: 1.1rem; }
+.field label { display: block; font-weight: 700; margin-bottom: .3rem; }
+.field-row { display: flex; flex-wrap: wrap; gap: 1rem; }
+.field-row .field { flex: 1 1 14rem; }
+.field-row .field-small { flex: 1 1 9rem; }
+.req { font-weight: 400; color: var(--accent); font-size: .9rem; }
+.hint { color: var(--ink-soft); font-size: .95rem; margin: .3rem 0 0; }
+.fine-print { color: var(--ink-soft); font-size: .9rem; margin-top: 1.5rem; }
+
+.ingredients-editor { display: grid; grid-template-columns: 1fr 1fr; gap: 1.25rem; }
+@media (max-width: 50rem) { .ingredients-editor { grid-template-columns: 1fr; } }
+.preview {
+  background: var(--paper);
+  border: 2px dashed var(--line);
+  border-radius: var(--radius);
+  padding: .9rem 1rem;
+}
+.preview h3 { margin-top: 0; }
+.preview-list { list-style: none; margin: .5rem 0 0; padding: 0; font-size: .98rem; }
+.preview-list li { padding: .3rem 0; border-bottom: 1px solid #efeae1; }
+.preview-empty, .preview-plain { color: var(--ink-soft); }
+.preview-heading { font-weight: 700; font-family: Georgia, serif; }
+.preview-qty { font-weight: 700; }
+.preview-flag { color: var(--ink-soft); font-size: .85rem; }
+
+.form-actions { display: flex; flex-wrap: wrap; gap: .75rem; align-items: center; margin-bottom: 3rem; }
+
+.callout {
+  background: var(--card);
+  border: 2px solid var(--line);
+  border-radius: var(--radius);
+  padding: 1rem 1.2rem;
+  text-align: left;
+  margin-top: 1.5rem;
+}
+.callout h2 { margin-top: 0; font-size: 1.15rem; }
+.plain-list { padding-left: 1.2rem; }
+.plain-list li, .spaced-list li { margin-bottom: .6rem; }
+
+/* --- footer ---------------------------------------------------------- */
+
+.site-footer {
+  margin-top: 3rem;
+  padding: 1.5rem 0 2.5rem;
+  border-top: 2px solid var(--line);
+  color: var(--ink-soft);
+  font-size: .95rem;
+}
+.site-footer p { margin: .25rem 0; }
+
+/* --- printing -------------------------------------------------------- */
+
+@media print {
+  :root { font-size: 13pt; }
+  body { background: #fff; }
+  .site-header, .site-footer, .no-print, .notes-section form,
+  .crumbs, .flashes, .skip { display: none !important; }
+  .recipe-body { grid-template-columns: 1fr; }
+  .wrap { max-width: none; padding: 0; }
+  fieldset, .card, .comment, .scaler { border-color: #999; }
+  a { color: inherit; text-decoration: none; }
+  .steps li { page-break-inside: avoid; }
+  /* One photo on a printed recipe is nice; five is a waste of ink. */
+  .photo-banner { border: none; max-width: 3.6in; display: block; }
+  .banner-photo { display: none; }
+  .banner-photo:first-child { display: block; }
+  .banner-photo img { height: auto; max-height: 2.4in; }
+}

@@ -1,0 +1,36 @@
+# Render blueprint. In Render: New -> Blueprint, point it at this repo.
+# The disk is what keeps the recipes; without it a redeploy would wipe them.
+services:
+  - type: web
+    name: valentine-cookbook
+    runtime: python
+    plan: starter                    # starter is required for a persistent disk
+    region: oregon
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn app:app --bind 0.0.0.0:$PORT --workers 2 --threads 4 --timeout 60
+    healthCheckPath: /healthz
+    autoDeploy: true
+    disk:
+      name: cookbook-data
+      mountPath: /var/data
+      sizeGB: 1
+    envVars:
+      - key: DATA_DIR
+        value: /var/data
+      - key: PYTHON_VERSION
+        value: "3.12.4"
+      - key: FORCE_HTTPS
+        value: "1"
+      - key: SITE_NAME
+        value: Valentine Cookbook
+      - key: SECRET_KEY
+        generateValue: true
+      - key: MAIL_PROVIDER
+        value: resend
+      - key: MAIL_FROM
+        value: Valentine Cookbook <cookbook@valentinecookbook.com>
+      # Set these two in the Render dashboard, not in this file:
+      - key: RESEND_API_KEY
+        sync: false
+      - key: ADMIN_EMAILS
+        sync: false

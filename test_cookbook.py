@@ -11,8 +11,11 @@ import os
 import shutil
 import tempfile
 import unittest
+import urllib.error
+import urllib.request
 
 import db
+import mailer
 import moderation
 import units
 
@@ -378,6 +381,59 @@ class MigrationTests(unittest.TestCase):
         conn.commit()
         self.assertIn("credited_to", db.columns(conn, "recipes"))
         conn.close()
+
+
+class OutboundRequestTests(unittest.TestCase):
+    """Every outbound API call must introduce itself.
+
+    urllib defaults to "Python-urllib/3.x", which Cloudflare blocks with
+    "error code: 1010" before the request reaches the API behind it. That cost
+    a live site every one of its sign-in emails, and it fails invisibly: the
+    provider never sees the request, so their logs show nothing at all.
+    """
+
+    def _captured_request(self, send):
+        captured = {}
+
+        def fake_urlopen(request, timeout=None):
+            captured["headers"] = {k.lower(): v for k, v in request.header_items()}
+            raise urllib.error.URLError("stopped before the network")
+
+        original = urllib.request.urlopen
+        urllib.request.urlopen = fake_urlopen
+        try:
+            send()
+        except Exception:                       # noqa: BLE001 - only headers matter
+            pass
+        finally:
+            urllib.request.urlopen = original
+        return captured.get("headers", {})
+
+    def test_resend_sends_a_real_user_agent(self):
+        os.environ["MAIL_PROVIDER"] = "resend"
+        os.environ["RESEND_API_KEY"] = "re_test"
+        try:
+            headers = self._captured_request(
+                lambda: mailer._send_resend("a@example.com", "s", "b")
+            )
+        finally:
+            os.environ.pop("MAIL_PROVIDER", None)
+            os.environ.pop("RESEND_API_KEY", None)
+        agent = headers.get("user-agent", "")
+        self.assertTrue(agent, "no User-Agent was sent")
+        self.assertNotIn("python-urllib", agent.lower())
+
+    def test_moderation_api_sends_a_real_user_agent(self):
+        os.environ["ANTHROPIC_API_KEY"] = "sk-test"
+        try:
+            headers = self._captured_request(
+                lambda: moderation.ai_review("some text", "comment")
+            )
+        finally:
+            os.environ.pop("ANTHROPIC_API_KEY", None)
+        agent = headers.get("user-agent", "")
+        self.assertTrue(agent, "no User-Agent was sent")
+        self.assertNotIn("python-urllib", agent.lower())
 
 
 class CreditTests(unittest.TestCase):

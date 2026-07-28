@@ -19,6 +19,13 @@ from email.message import EmailMessage
 
 log = logging.getLogger("mailer")
 
+# urllib introduces itself as "Python-urllib/3.x", and Cloudflare -- which sits
+# in front of Resend's API -- rejects that signature outright with "error code:
+# 1010" before the request ever reaches Resend. Any ordinary User-Agent gets
+# through. Without this, every email fails and nothing appears in Resend's own
+# logs, because from their side the request never happened.
+USER_AGENT = "ValentineCookbook/1.0 (+https://valentinecookbook.com)"
+
 
 def provider():
     return os.environ.get("MAIL_PROVIDER", "console").strip().lower()
@@ -100,6 +107,8 @@ def _send_resend(to_address, subject, body):
         headers={
             "content-type": "application/json",
             "authorization": "Bearer %s" % key,
+            "user-agent": USER_AGENT,
+            "accept": "application/json",
         },
     )
     try:

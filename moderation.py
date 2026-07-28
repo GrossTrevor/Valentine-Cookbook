@@ -229,6 +229,9 @@ def ai_review(text, kind):
             "content-type": "application/json",
             "x-api-key": os.environ["ANTHROPIC_API_KEY"],
             "anthropic-version": "2023-06-01",
+            # Same reason as in mailer.py: urllib's default "Python-urllib/3.x"
+            # is a signature CDNs in front of APIs routinely block.
+            "user-agent": "ValentineCookbook/1.0 (+https://valentinecookbook.com)",
         },
     )
     try:

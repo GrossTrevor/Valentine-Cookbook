@@ -1,0 +1,202 @@
+{% extends "base.html" %}
+{% set editing = mode == 'edit' %}
+{% set pictures = pictures | default([]) %}
+{% block title %}{{ 'Edit a recipe' if editing else 'Add a recipe' }} &mdash; {{ site_name }}{% endblock %}
+
+{% block body %}
+
+<h1>{{ 'Edit this recipe' if editing else 'Add a recipe' }}</h1>
+<p class="lead">
+  {% if editing %}
+    Change anything you like and press Save at the bottom.
+  {% else %}
+    Only the name, the ingredients, and the directions are required.
+    Everything else is optional &mdash; fill in what you know.
+  {% endif %}
+</p>
+
+<form class="recipe-form" method="post" enctype="multipart/form-data" data-recipe-form>
+  <input type="hidden" name="csrf" value="{{ csrf_token() }}">
+  <input type="hidden" name="started_at" value="{{ now_ts }}">
+  <label class="hp" aria-hidden="true">Leave this box empty<input type="text" name="website" tabindex="-1" autocomplete="off"></label>
+
+  <fieldset>
+    <legend>The basics</legend>
+
+    <div class="field">
+      <label for="title">Recipe name <span class="req">(required)</span></label>
+      <input id="title" name="title" type="text" required maxlength="120"
+             value="{{ values.get('title', '') }}"
+             placeholder="Stuffed French Toast">
+    </div>
+
+    <div class="field">
+      <label for="description">A sentence about it</label>
+      <input id="description" name="description" type="text" maxlength="600"
+             value="{{ values.get('description', '') }}"
+             placeholder="The one Barb made every Christmas morning.">
+    </div>
+
+    <div class="field">
+      <label for="credited_to">Whose recipe is it?</label>
+      <input id="credited_to" name="credited_to" type="text" maxlength="60"
+             value="{{ values.get('credited_to', '') }}"
+             placeholder="Barb Valentine">
+      <p class="hint">
+        Leave this empty if the recipe is your own. If you are typing in
+        somebody else's &mdash; a parent's, a grandparent's, someone no longer
+        with us &mdash; put their name here. The recipe will be credited to
+        them, and it will still show that you were the one who added it.
+      </p>
+    </div>
+
+    <div class="field-row">
+      <div class="field">
+        <label for="meal">Course</label>
+        <input id="meal" name="meal" type="text" list="meal-options" maxlength="40"
+               value="{{ values.get('meal', '') }}" placeholder="Breakfast">
+        <datalist id="meal-options">
+          {% for m in meals %}<option value="{{ m }}">{% endfor %}
+        </datalist>
+      </div>
+      <div class="field">
+        <label for="cuisine">Kind of food</label>
+        <input id="cuisine" name="cuisine" type="text" list="cuisine-options" maxlength="40"
+               value="{{ values.get('cuisine', '') }}" placeholder="American">
+        <datalist id="cuisine-options">
+          {% for c in cuisines %}<option value="{{ c }}">{% endfor %}
+        </datalist>
+      </div>
+    </div>
+
+    <div class="field-row">
+      <div class="field field-small">
+        <label for="servings">How many does it make?</label>
+        <input id="servings" name="servings" type="number" min="1" max="1000" step="1"
+               value="{{ values.get('servings', '')|int if values.get('servings') else '' }}"
+               placeholder="8">
+      </div>
+      <div class="field field-small">
+        <label for="servings_label">Of what?</label>
+        <input id="servings_label" name="servings_label" type="text" maxlength="30"
+               value="{{ values.get('servings_label', '') }}" placeholder="servings">
+      </div>
+      <div class="field field-small">
+        <label for="prep_minutes">Prep time (minutes)</label>
+        <input id="prep_minutes" name="prep_minutes" type="number" min="0" max="10000"
+               value="{{ values.get('prep_minutes', '') if values.get('prep_minutes') is not none else '' }}"
+               placeholder="20">
+      </div>
+      <div class="field field-small">
+        <label for="cook_minutes">Cook time (minutes)</label>
+        <input id="cook_minutes" name="cook_minutes" type="number" min="0" max="10000"
+               value="{{ values.get('cook_minutes', '') if values.get('cook_minutes') is not none else '' }}"
+               placeholder="45">
+      </div>
+    </div>
+  </fieldset>
+
+  <fieldset>
+    <legend>Ingredients <span class="req">(required)</span></legend>
+    <p class="hint">
+      One ingredient on each line, the way you would write it on a card:
+      <em>2 cups milk</em>. Write a line ending in a colon, like <em>For the topping:</em>,
+      to start a new section.
+    </p>
+    <div class="ingredients-editor">
+      <div class="field">
+        <label class="visually-hidden" for="ingredients">Ingredients, one per line</label>
+        <textarea id="ingredients" name="ingredients" rows="12" required maxlength="8000"
+                  data-ingredients-input
+                  placeholder="1 loaf of french bread&#10;8 oz of cream cheese">{{ values.get('ingredients', '') }}</textarea>
+      </div>
+      <aside class="preview" data-preview aria-live="polite">
+        <h3>How it will look</h3>
+        <p class="hint">We read the amounts so the website can double or halve them for you.</p>
+        <ul class="preview-list" data-preview-list>
+          <li class="preview-empty">Start typing to see a preview.</li>
+        </ul>
+      </aside>
+    </div>
+  </fieldset>
+
+  <fieldset>
+    <legend>Directions <span class="req">(required)</span></legend>
+    <p class="hint">One step on each line. There is no need to number them.</p>
+    <div class="field">
+      <label class="visually-hidden" for="steps">Directions, one step per line</label>
+      <textarea id="steps" name="steps" rows="12" required maxlength="12000"
+                placeholder="Heat the oven to 350 degrees.&#10;Slice the bread thick and cut a pocket in each slice.&#10;Soften the cream cheese and spread it inside each pocket.">{{ values.get('steps', '') }}</textarea>
+    </div>
+  </fieldset>
+
+  <fieldset>
+    <legend>Photos</legend>
+    <p class="hint">
+      Up to 5 photos. Pictures taken on a phone are fine &mdash; they are made
+      smaller automatically, so there is nothing you need to do to them first.
+    </p>
+
+    {% if pictures %}
+    <ul class="photo-editor">
+      {% for p in pictures %}
+      <li>
+        <img src="{{ url_for('photo', name=p['filename']) }}" alt="Photo {{ loop.index }}">
+        <label class="photo-remove">
+          <input type="checkbox" name="remove_photo" value="{{ p['id'] }}">
+          Remove this photo
+        </label>
+      </li>
+      {% endfor %}
+    </ul>
+    {% endif %}
+
+    <div class="field">
+      <label for="photos">
+        {% if pictures %}Add more photos{% else %}Choose photos{% endif %}
+        {% if pictures|length < 5 %}
+          <span class="req">({{ 5 - pictures|length }} more allowed)</span>
+        {% endif %}
+      </label>
+      <input id="photos" name="photos" type="file" accept="image/*" multiple>
+      {% if pictures|length >= 5 %}
+      <p class="hint">
+        This recipe already has 5 photos. Tick <em>Remove this photo</em> on one
+        above and choose a new one &mdash; both happen when you save.
+      </p>
+      {% endif %}
+    </div>
+  </fieldset>
+
+  <fieldset>
+    <legend>Anything else</legend>
+    <div class="field">
+      <label for="notes">Notes, tips, and stories</label>
+      <textarea id="notes" name="notes" rows="4" maxlength="3000"
+                placeholder="Best made the night before and left in the refrigerator until morning.">{{ values.get('notes', '') }}</textarea>
+    </div>
+    <div class="field-row">
+      <div class="field">
+        <label for="source">Where it came from</label>
+        <input id="source" name="source" type="text" maxlength="120"
+               value="{{ values.get('source', '') }}"
+               placeholder="The church cookbook, 1978">
+      </div>
+      <div class="field">
+        <label for="tags">Tags, separated by commas</label>
+        <input id="tags" name="tags" type="text" maxlength="200"
+               value="{{ values.get('tags', '') }}"
+               placeholder="christmas, brunch, make ahead">
+      </div>
+    </div>
+  </fieldset>
+
+  <div class="form-actions">
+    <button class="btn btn-primary btn-big" type="submit">
+      {{ 'Save my changes' if editing else 'Add this recipe to the cookbook' }}
+    </button>
+    <a class="btn" href="{{ url_for('recipe', slug=r['slug']) if editing else url_for('index') }}">Cancel</a>
+  </div>
+</form>
+
+{% endblock %}

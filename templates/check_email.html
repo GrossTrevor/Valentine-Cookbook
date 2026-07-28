@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% block title %}Check your email &mdash; {{ site_name }}{% endblock %}
+
+{% block body %}
+
+<div class="narrow center">
+  <h1>Check your email</h1>
+  <p class="lead">
+    We just sent a sign-in link to <strong>{{ email }}</strong>.
+    Open that email and click the link. That is all there is to it.
+  </p>
+  <div class="callout">
+    <h2>Not there yet?</h2>
+    <ul class="plain-list">
+      <li>It usually arrives within a minute.</li>
+      <li>Look in your Junk or Spam folder.</li>
+      <li>The link works one time and expires after 45 minutes.</li>
+      <li><a href="{{ url_for('login') }}">Send another link</a> if you need one.</li>
+    </ul>
+  </div>
+</div>
+
+{% endblock %}

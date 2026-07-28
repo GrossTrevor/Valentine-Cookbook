@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+{% block title %}Sign in &mdash; {{ site_name }}{% endblock %}
+
+{% block body %}
+
+<div class="narrow">
+  <h1>Sign in</h1>
+  <p class="lead">
+    There is no password to remember. Type your name and email address, and we
+    will email you a link. Click that link and you are in.
+  </p>
+
+  <form method="post" class="signin-form">
+    <input type="hidden" name="csrf" value="{{ csrf_token() }}">
+    <input type="hidden" name="started_at" value="{{ now_ts }}">
+    <label class="hp" aria-hidden="true">Leave this box empty<input type="text" name="website" tabindex="-1" autocomplete="off"></label>
+
+    <div class="field">
+      <label for="full_name">Your full name</label>
+      <input id="full_name" name="full_name" type="text" autocomplete="name"
+             maxlength="80" value="{{ values.get('full_name', '') }}"
+             placeholder="Barb Valentine">
+      <p class="hint">First and last name. It shows on the recipes and notes you add.</p>
+    </div>
+
+    <div class="field">
+      <label for="email">Your email address</label>
+      <input id="email" name="email" type="email" required autocomplete="email"
+             inputmode="email" maxlength="160" value="{{ values.get('email', '') }}"
+             placeholder="example@email.com">
+      <p class="hint">Used only for your sign-in link. It is never shown on the website.</p>
+    </div>
+
+    <button class="btn btn-primary btn-big" type="submit">Email me a sign-in link</button>
+  </form>
+
+  <p class="fine-print">
+    Signing in once is usually enough &mdash; this website will remember you on
+    this device for about a year.
+  </p>
+</div>
+
+{% endblock %}

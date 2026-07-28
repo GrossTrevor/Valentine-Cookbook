@@ -1,0 +1,128 @@
+{% extends "base.html" %}
+{% block title %}{{ site_name }}{% endblock %}
+
+{% block body %}
+
+{% if not active %}
+<section class="hero">
+  <h1>The family cookbook</h1>
+  <p class="lead">
+    Every recipe we have, in one place. Search for one, or
+    <a href="{{ url_for('add') }}">add one of your own</a>.
+    Every recipe has buttons to double or halve it, so you never have to do the math.
+  </p>
+</section>
+{% endif %}
+
+{# Nothing to narrow down until there are recipes, and an empty filter panel is
+   a poor first impression on a brand new cookbook. #}
+{% if total %}
+<section class="filters" aria-label="Narrow down the recipes">
+  <form action="{{ url_for('index') }}" method="get" class="filter-form">
+    {% if query %}<input type="hidden" name="q" value="{{ query }}">{% endif %}
+
+    <div class="filter-row">
+      <span class="filter-label">Kind of food</span>
+      <div class="chips">
+        <a class="chip {% if not cuisine %}chip-on{% endif %}"
+           href="{{ url_for('index', q=query or None, meal=meal or None, ingredient=ingredient or None, tag=tag or None, sort=sort) }}">All</a>
+        {% for name, count in used_cuisines %}
+          <a class="chip {% if cuisine|lower == name|lower %}chip-on{% endif %}"
+             href="{{ url_for('index', q=query or None, cuisine=name, meal=meal or None, ingredient=ingredient or None, tag=tag or None, sort=sort) }}">{{ name }} <span class="count">{{ count }}</span></a>
+        {% endfor %}
+      </div>
+    </div>
+
+    <div class="filter-row">
+      <span class="filter-label">Course</span>
+      <div class="chips">
+        <a class="chip {% if not meal %}chip-on{% endif %}"
+           href="{{ url_for('index', q=query or None, cuisine=cuisine or None, ingredient=ingredient or None, tag=tag or None, sort=sort) }}">All</a>
+        {% for name, count in used_meals %}
+          <a class="chip {% if meal|lower == name|lower %}chip-on{% endif %}"
+             href="{{ url_for('index', q=query or None, cuisine=cuisine or None, meal=name, ingredient=ingredient or None, tag=tag or None, sort=sort) }}">{{ name }} <span class="count">{{ count }}</span></a>
+        {% endfor %}
+      </div>
+    </div>
+
+    {% if popular_tags %}
+    <div class="filter-row">
+      <span class="filter-label">Tags</span>
+      <div class="chips">
+        {% for name, count in popular_tags %}
+          <a class="chip {% if tag|lower == name|lower %}chip-on{% endif %}"
+             href="{{ url_for('index', q=query or None, cuisine=cuisine or None, meal=meal or None, ingredient=ingredient or None, tag=name, sort=sort) }}">{{ name }}</a>
+        {% endfor %}
+      </div>
+    </div>
+    {% endif %}
+
+    <div class="filter-row filter-row-inputs">
+      <label class="filter-label" for="ingredient-filter">Has this ingredient</label>
+      <input id="ingredient-filter" type="text" name="ingredient" value="{{ ingredient }}"
+             placeholder="for example: chicken">
+      {% if cuisine %}<input type="hidden" name="cuisine" value="{{ cuisine }}">{% endif %}
+      {% if meal %}<input type="hidden" name="meal" value="{{ meal }}">{% endif %}
+      {% if tag %}<input type="hidden" name="tag" value="{{ tag }}">{% endif %}
+      <label class="filter-label" for="sort-order">Order</label>
+      <select id="sort-order" name="sort">
+        <option value="new" {% if sort != 'az' %}selected{% endif %}>Newest first</option>
+        <option value="az" {% if sort == 'az' %}selected{% endif %}>A to Z</option>
+      </select>
+      <button class="btn" type="submit">Apply</button>
+      {% if active %}
+        <a class="btn btn-quiet" href="{{ url_for('index') }}">Clear all</a>
+      {% endif %}
+    </div>
+  </form>
+</section>
+{% endif %}
+
+{% if total %}
+<h2 class="results-heading">
+  {% if recipes %}
+    {{ recipes|length }} recipe{{ '' if recipes|length == 1 else 's' }}
+    {%- if active %} found{% else %} in the cookbook{% endif %}
+  {% else %}
+    No recipes found
+  {% endif %}
+</h2>
+{% endif %}
+
+{% if recipes %}
+<ul class="cards">
+  {% for r in recipes %}
+  <li class="card {% if r['photo'] %}card-with-photo{% endif %}">
+    {% if r['photo'] %}
+    <a class="card-photo" href="{{ url_for('recipe', slug=r['slug']) }}" tabindex="-1" aria-hidden="true">
+      <img src="{{ url_for('photo', name=r['photo']) }}" alt="" loading="lazy">
+    </a>
+    {% endif %}
+    <h3><a href="{{ url_for('recipe', slug=r['slug']) }}">{{ r['title'] }}</a></h3>
+    {% if r['description'] %}<p class="card-desc">{{ r['description'] }}</p>{% endif %}
+    <p class="card-meta">
+      {% if r['meal'] %}<span class="pill">{{ r['meal'] }}</span>{% endif %}
+      {% if r['cuisine'] %}<span class="pill">{{ r['cuisine'] }}</span>{% endif %}
+      {% if r['prep_minutes'] or r['cook_minutes'] %}
+        <span class="pill">{{ pretty_time((r['prep_minutes'] or 0) + (r['cook_minutes'] or 0)) }}</span>
+      {% endif %}
+    </p>
+    <p class="card-by">à la {{ credited(r) }}</p>
+  </li>
+  {% endfor %}
+</ul>
+{% else %}
+<div class="empty">
+  {% if total == 0 %}
+    <p>The cookbook is empty so far. Yours could be the first recipe in it.</p>
+  {% else %}
+    <p>Nothing matched that. Try a shorter word, or clear the filters and browse everything.</p>
+  {% endif %}
+  <p>
+    <a class="btn btn-primary" href="{{ url_for('add') }}">+ Add a Recipe</a>
+    {% if active %}<a class="btn" href="{{ url_for('index') }}">Show all recipes</a>{% endif %}
+  </p>
+</div>
+{% endif %}
+
+{% endblock %}

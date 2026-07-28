@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{% block title %}{{ site_name }}{% endblock %}</title>
+<meta name="description" content="The Valentine family cookbook. Add your recipes, find everyone else's.">
+<link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+<link rel="icon" href="{{ url_for('static', filename='favicon.svg') }}" type="image/svg+xml">
+<script src="{{ url_for('static', filename='app.js') }}"></script>
+</head>
+<body>
+
+<a class="skip" href="#main">Skip to the recipes</a>
+
+<header class="site-header">
+  <div class="wrap header-inner">
+    <a class="brand" href="{{ url_for('index') }}">
+      <span class="brand-mark" aria-hidden="true">&#9829;</span>
+      <span>{{ site_name }}</span>
+    </a>
+
+    <form class="search" role="search" action="{{ url_for('index') }}" method="get">
+      <label class="visually-hidden" for="site-search">Search recipes</label>
+      <input id="site-search" type="search" name="q" value="{{ query|default('') }}"
+             placeholder="Search recipes, ingredients, people&hellip;" autocomplete="off">
+      <button type="submit">Search</button>
+    </form>
+
+    <nav class="site-nav" aria-label="Main">
+      <a class="btn btn-primary" href="{{ url_for('add') }}">+ Add a Recipe</a>
+      <a class="btn" href="{{ url_for('help_page') }}">Help</a>
+      {% if user %}
+        <a class="btn" href="{{ url_for('me') }}">My Recipes</a>
+        <form class="inline" action="{{ url_for('logout') }}" method="post">
+          <input type="hidden" name="csrf" value="{{ csrf_token() }}">
+          <button class="btn btn-quiet" type="submit">Sign out</button>
+        </form>
+      {% else %}
+        <a class="btn" href="{{ url_for('login') }}">Sign in</a>
+      {% endif %}
+      <span class="text-size" role="group" aria-label="Text size">
+        <button class="btn btn-quiet" type="button" data-text-size="down" aria-label="Make text smaller">A&minus;</button>
+        <button class="btn btn-quiet" type="button" data-text-size="up" aria-label="Make text bigger">A+</button>
+      </span>
+    </nav>
+  </div>
+</header>
+
+<main id="main" class="wrap">
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+      <div class="flashes" role="status" aria-live="polite">
+        {% for category, message in messages %}
+          <p class="flash flash-{{ category }}">{{ message }}</p>
+        {% endfor %}
+      </div>
+    {% endif %}
+  {% endwith %}
+
+  {% block body %}{% endblock %}
+</main>
+
+<footer class="site-footer">
+  <div class="wrap">
+    <p>{{ site_name }} &mdash; recipes kept by the family, for the family.</p>
+    <p><a href="{{ url_for('help_page') }}">How to use this website</a></p>
+  </div>
+</footer>
+
+</body>
+</html>

@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{% block title %}My recipes &mdash; {{ site_name }}{% endblock %}
+
+{% block body %}
+
+<h1>My recipes</h1>
+<p class="lead">
+  Signed in as <strong>{{ user['full_name'] }}</strong> ({{ user['email'] }}).
+  You can edit anything you added here.
+</p>
+
+{% if recipes %}
+<ul class="cards">
+  {% for r in recipes %}
+  <li class="card {% if r['photo'] %}card-with-photo{% endif %}">
+    {% if r['photo'] %}
+    <a class="card-photo" href="{{ url_for('recipe', slug=r['slug']) }}" tabindex="-1" aria-hidden="true">
+      <img src="{{ url_for('photo', name=r['photo']) }}" alt="" loading="lazy">
+    </a>
+    {% endif %}
+    <h3><a href="{{ url_for('recipe', slug=r['slug']) }}">{{ r['title'] }}</a></h3>
+    {% if r['description'] %}<p class="card-desc">{{ r['description'] }}</p>{% endif %}
+    <p class="card-meta">
+      <a class="btn btn-small" href="{{ url_for('edit', slug=r['slug']) }}">Edit</a>
+    </p>
+  </li>
+  {% endfor %}
+</ul>
+{% else %}
+<div class="empty">
+  <p>You have not added a recipe yet. There is room for yours.</p>
+  <p><a class="btn btn-primary" href="{{ url_for('add') }}">+ Add a Recipe</a></p>
+</div>
+{% endif %}
+
+{% endblock %}

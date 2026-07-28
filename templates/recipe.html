@@ -1,0 +1,181 @@
+{% extends "base.html" %}
+{% block title %}{{ r['title'] }} &mdash; {{ site_name }}{% endblock %}
+
+{% block body %}
+
+<p class="crumbs no-print"><a href="{{ url_for('index') }}">&larr; All recipes</a></p>
+
+<article class="recipe"
+         data-servings="{{ r['servings'] or '' }}"
+         data-servings-label="{{ r['servings_label'] }}">
+
+  {% if pictures %}
+  <section class="photo-banner" data-count="{{ pictures|length }}"
+           aria-label="Photos of {{ r['title'] }}">
+    {% for p in pictures %}
+    <a class="banner-photo" href="{{ url_for('photo', name=p['filename']) }}">
+      <img src="{{ url_for('photo', name=p['filename']) }}"
+           alt="{{ r['title'] }}{% if not loop.first %}, photo {{ loop.index }}{% endif %}"
+           {% if p['width'] %}width="{{ p['width'] }}" height="{{ p['height'] }}"{% endif %}
+           loading="lazy">
+    </a>
+    {% endfor %}
+  </section>
+  {% endif %}
+
+  <header class="recipe-head">
+    <h1>
+      {# The space matters: the span is a separate line visually, but a screen
+         reader would otherwise read "French Toastà la Barb". #}
+      {{ r['title'] }} <span class="ala">à la {{ credited(r) }}</span>
+    </h1>
+    {% if r['description'] %}<p class="lead">{{ r['description'] }}</p>{% endif %}
+    <p class="recipe-meta">
+      {% if r['meal'] %}<a class="pill" href="{{ url_for('index', meal=r['meal']) }}">{{ r['meal'] }}</a>{% endif %}
+      {% if r['cuisine'] %}<a class="pill" href="{{ url_for('index', cuisine=r['cuisine']) }}">{{ r['cuisine'] }}</a>{% endif %}
+      {% for t in tags %}<a class="pill" href="{{ url_for('index', tag=t) }}">{{ t }}</a>{% endfor %}
+    </p>
+    <p class="recipe-by">
+      {# Only worth naming the submitter separately when it is not the same
+         person the recipe is already credited to, just above. #}
+      {% if r['credited_to'] %}
+        Typed in by <strong>{{ r['submitted_by_name'] }}</strong>
+      {% else %}
+        Added by <strong>{{ r['submitted_by_name'] }}</strong>
+      {% endif %}
+      {% if r['source'] %}&middot; from {{ r['source'] }}{% endif %}
+      {% if r['prep_minutes'] %}&middot; {{ pretty_time(r['prep_minutes']) }} to prepare{% endif %}
+      {% if r['cook_minutes'] %}&middot; {{ pretty_time(r['cook_minutes']) }} to cook{% endif %}
+    </p>
+  </header>
+
+  <div class="recipe-body">
+
+    <section class="ingredients-panel" aria-labelledby="ingredients-heading">
+      <h2 id="ingredients-heading">Ingredients</h2>
+
+      <div class="scaler no-print" data-scaler>
+        {% if r['servings'] %}
+        <div class="scaler-servings">
+          <span class="scaler-title">Make</span>
+          <button class="round" type="button" data-serving-step="-1" aria-label="Fewer servings">&minus;</button>
+          <output class="serving-count" data-serving-output aria-live="polite">{{ r['servings'] }}</output>
+          <span class="scaler-title" data-serving-label>{{ r['servings_label'] }}</span>
+          <button class="round" type="button" data-serving-step="1" aria-label="More servings">+</button>
+        </div>
+        {% endif %}
+        <div class="scaler-presets">
+          <span class="scaler-title">Or</span>
+          <button class="btn btn-scale" type="button" data-factor="0.3333333333333333">&divide; 3</button>
+          <button class="btn btn-scale" type="button" data-factor="0.5">&divide; 2</button>
+          <button class="btn btn-scale btn-scale-on" type="button" data-factor="1">As written</button>
+          <button class="btn btn-scale" type="button" data-factor="2">&times; 2</button>
+          <button class="btn btn-scale" type="button" data-factor="3">&times; 3</button>
+        </div>
+        <p class="scaler-note" data-scale-note hidden></p>
+      </div>
+
+      <ul class="ingredients" data-ingredients>
+        {% for i in ingredients %}
+          {% if i['is_heading'] %}
+            <li class="ing-heading">{{ i['item'] }}</li>
+          {% else %}
+            <li class="ing">
+              <label>
+                <input type="checkbox" class="no-print" aria-label="Mark {{ i['item'] }} as gathered">
+                <span class="ing-text">
+                  {% if i['qty'] is not none %}
+                    <span class="amount"
+                          data-qty="{{ i['qty'] }}"
+                          data-qty-max="{{ i['qty_max'] if i['qty_max'] is not none else '' }}"
+                          data-unit="{{ i['unit'] }}">{{ amount_text(i) }}</span>
+                    <span class="ing-item">{{ i['item'] }}</span>
+                  {% else %}
+                    <span class="ing-item">{{ i['raw'] }}</span>
+                  {% endif %}
+                </span>
+              </label>
+            </li>
+          {% endif %}
+        {% endfor %}
+      </ul>
+    </section>
+
+    <section class="steps-panel" aria-labelledby="steps-heading">
+      <h2 id="steps-heading">Directions</h2>
+      {% if steps %}
+      <ol class="steps">
+        {% for s in steps %}<li>{{ s }}</li>{% endfor %}
+      </ol>
+      {% endif %}
+
+      {% if r['notes'] %}
+      <div class="recipe-notes">
+        <h3>Notes from {{ r['author_name'] }}</h3>
+        <p>{{ r['notes'] }}</p>
+      </div>
+      {% endif %}
+    </section>
+  </div>
+
+  <p class="recipe-actions no-print">
+    <button class="btn" type="button" data-print>Print this recipe</button>
+    {% if can_edit %}
+      <a class="btn" href="{{ url_for('edit', slug=r['slug']) }}">Edit this recipe</a>
+      <form class="inline" action="{{ url_for('delete', slug=r['slug']) }}" method="post"
+            data-confirm="Remove this recipe from the cookbook for good?">
+        <input type="hidden" name="csrf" value="{{ csrf_token() }}">
+        <button class="btn btn-quiet" type="submit">Delete</button>
+      </form>
+    {% endif %}
+  </p>
+</article>
+
+<section class="notes-section" id="notes" aria-labelledby="notes-heading">
+  <h2 id="notes-heading">Notes from the family</h2>
+  <p class="section-hint">
+    Cooked this? Leave a tip &mdash; a timing change, a substitution, or how your
+    family likes it. Please keep it kind; unkind notes are blocked automatically.
+  </p>
+
+  {% if comments %}
+  <ul class="comments">
+    {% for c in comments %}
+    <li class="comment">
+      <p class="comment-head">
+        <strong>{{ c['author_name'] }}</strong>
+        <span class="comment-date">{{ relative_date(c['created_at']) }}</span>
+      </p>
+      <p class="comment-body">{{ c['body'] }}</p>
+      {% if is_admin or (user and c['user_id'] == user['id']) %}
+      <form class="inline" action="{{ url_for('delete_comment', comment_id=c['id']) }}"
+            method="post" data-confirm="Remove this note?">
+        <input type="hidden" name="csrf" value="{{ csrf_token() }}">
+        <button class="link-button" type="submit">Remove my note</button>
+      </form>
+      {% endif %}
+    </li>
+    {% endfor %}
+  </ul>
+  {% else %}
+  <p class="empty-quiet">No notes yet. Yours would be the first.</p>
+  {% endif %}
+
+  {% if user %}
+  <form class="comment-form" action="{{ url_for('comment', slug=r['slug']) }}" method="post">
+    <input type="hidden" name="csrf" value="{{ csrf_token() }}">
+    <input type="hidden" name="started_at" value="{{ now_ts }}">
+    <label class="hp" aria-hidden="true">Leave this box empty<input type="text" name="website" tabindex="-1" autocomplete="off"></label>
+    <label for="comment">Add your note</label>
+    <textarea id="comment" name="comment" rows="4"
+              placeholder="For example: I bake it 5 minutes longer, and use half the sugar."></textarea>
+    <button class="btn btn-primary" type="submit">Post my note</button>
+  </form>
+  {% else %}
+  <p class="signin-nudge">
+    <a class="btn btn-primary" href="{{ url_for('login') }}">Sign in to add a note</a>
+  </p>
+  {% endif %}
+</section>
+
+{% endblock %}

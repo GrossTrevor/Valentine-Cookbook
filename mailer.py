@@ -102,14 +102,28 @@ def _send_resend(to_address, subject, body):
             "authorization": "Bearer %s" % key,
         },
     )
-    with urllib.request.urlopen(request, timeout=15) as response:
-        if response.status >= 300:
-            raise RuntimeError("resend returned %s" % response.status)
+    try:
+        with urllib.request.urlopen(request, timeout=15) as response:
+            if response.status >= 300:
+                raise RuntimeError("Resend returned %s" % response.status)
+            try:
+                # Resend's message id makes a send traceable in their dashboard.
+                return json.loads(response.read().decode("utf-8")).get("id", "?")
+            except (ValueError, UnicodeDecodeError):
+                return "?"
+    except urllib.error.HTTPError as exc:
+        # The status code alone is not actionable: a 403 could be an unverified
+        # domain, a restricted key, or a from-address that is not allowed, and
+        # Resend says which in the response body. Losing that turns a
+        # thirty-second fix into a guessing game.
+        detail = ""
         try:
-            # Resend's message id makes a send traceable in their dashboard.
-            return json.loads(response.read().decode("utf-8")).get("id", "?")
-        except (ValueError, UnicodeDecodeError):
-            return "?"
+            detail = exc.read().decode("utf-8", "replace").strip()[:400]
+        except Exception:                       # noqa: BLE001 - best effort only
+            pass
+        raise RuntimeError(
+            "Resend rejected the message with HTTP %s: %s" % (exc.code, detail or "(no detail)")
+        )
 
 
 def _send_smtp(to_address, subject, body):

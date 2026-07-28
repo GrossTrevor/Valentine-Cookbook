@@ -1,0 +1,13 @@
+.venv/
+venv/
+__pycache__/
+*.pyc
+data/
+*.db
+*.db-wal
+*.db-shm
+.env
+.DS_Store
+
+# Claude Code local machine settings
+.claude/settings.local.json

@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "cookbook",
+      "runtimeExecutable": ".venv/bin/flask",
+      "runtimeArgs": ["--app", "app", "run", "--port", "5055", "--debug"],
+      "port": 5055
+    }
+  ]
+}

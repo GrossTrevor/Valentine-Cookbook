@@ -1,0 +1,4 @@
+Flask==3.0.3
+gunicorn==22.0.0
+Pillow==11.3.0
+pillow-heif==1.1.1   # so photos straight off an iPhone (HEIC) are accepted

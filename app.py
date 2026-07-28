@@ -73,6 +73,7 @@ def create_app():
         MAX_CONTENT_LENGTH=photos.MAX_PER_RECIPE * photos.MAX_UPLOAD_BYTES + (1024 * 1024),
     )
     app.teardown_appcontext(db.close)
+    log.info("mail: %s", mailer.describe())
     _register(app)
     return app
 

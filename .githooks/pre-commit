@@ -1,0 +1,22 @@
+#!/usr/bin/env bash
+# Block commits that contain secrets or real .env files. Enabled with: git config core.hooksPath .githooks
+set -euo pipefail
+staged=$(git diff --cached --name-only --diff-filter=ACM)
+# .env, .env.local, … and named env files (keys.env, prod.env). Fine: templates (.example/.sample/.template)
+# and the web agent kit's own config, .kit/verify.env.
+envfiles=$(grep -E '(^|/)(\.env($|\.)|[^/]+\.env$)' <<<"$staged" | grep -Ev '\.(example|sample|template)$|(^|/)\.kit/verify\.env$' || true)
+if [[ -n "$envfiles" ]]; then
+  echo "pre-commit: refusing to commit a real .env file:" >&2
+  sed 's/^/  /' <<<"$envfiles" >&2
+  exit 1
+fi
+if ! command -v gitleaks >/dev/null; then
+  echo "pre-commit: gitleaks not installed — skipping secret scan (install it!)" >&2
+  exit 0
+fi
+if ! gitleaks git --help >/dev/null 2>&1; then   # distro builds may not even print a version number
+  echo "pre-commit: $(command -v gitleaks) is too old — it has no 'gitleaks git' (needs 8.19+)." >&2
+  echo "  Install a current release into ~/.local/bin (web-agent-kit: check-tools.sh --install) and put it first on PATH." >&2
+  exit 1
+fi
+gitleaks git --staged --no-banner --redact .

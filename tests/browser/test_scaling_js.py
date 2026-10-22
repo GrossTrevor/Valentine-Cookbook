@@ -16,10 +16,11 @@ R23: for any parsed amount and factor in [1/3, 3], renderAmount's text is
      where `shown` is the number parsed from the text ("1 1/2" -> 1.5) and
      `true_in_shown_unit` is qty * factor converted from the original unit to
      the unit the text names. Equivalently, back in the original unit, the
-     error is at most 0.035 of one displayed unit (decision OQ5). For a range
-     whose max was dropped (it landed in another unit), only the min is
-     checked. "a pinch of" is accepted only when qty * factor is a volume under
-     1/8 teaspoon.
+     error is at most 0.035 of one displayed unit (decision OQ5). For a range,
+     the max is checked the same way, and it must be shown whenever the scaled
+     max is displayed in the same unit as the min; only a max that lands in
+     another unit may be dropped (then only the min is checked). "a pinch of" is
+     accepted only when qty * factor is a volume under 1/8 teaspoon.
 
 Red by design until T9 exposes window.ValentineScaling (and, per OQ1, aligns
 JS formatAmount with units.format_amount).
@@ -313,8 +314,98 @@ def size_ratio(from_unit, to_unit):
     return None
 
 
+# Which unit a scaled amount is displayed in. This mirrors the unit choice in
+# app.js friendlyUnit (its STEP_UP / STEP_DOWN / NICE_STEPS tables), written out
+# here rather than called, so R23 can tell a range whose max legitimately moved
+# to another unit (JS drops it) from one whose max was simply lost (decision OQ5).
+_EPS = 1e-6
+_STEP_UP = {
+    "tsp": ("tbsp", 3, True),
+    "tbsp": ("cup", 8, False),
+    "floz": ("cup", 8, False),
+    "ml": ("liter", 1000, False),
+    "g": ("kg", 1000, False),
+    "oz": ("lb", 16, False),
+}
+_STEP_DOWN = {
+    "cup": ("tbsp", 0.25),
+    "tbsp": ("tsp", 0.25),
+    "quart": ("cup", 1),
+    "pint": ("cup", 1),
+    "gallon": ("quart", 1),
+    "liter": ("ml", 1),
+    "kg": ("g", 1),
+    "lb": ("oz", 0.25),
+}
+_NICE_STEPS = {
+    "cup": (1 / 4, 1 / 3),
+    "tbsp": (1 / 2,),
+    "tsp": (1 / 8,),
+    "floz": (1 / 2,),
+    "pint": (1 / 4,),
+    "quart": (1 / 4,),
+    "gallon": (1 / 4,),
+    "liter": (1 / 4,),
+    "kg": (1 / 4,),
+    "lb": (1 / 4,),
+}
+_SNAP_DENOMINATORS = (2, 3, 4, 8, 16)
+
+
+def _on_marking(value, unit):
+    steps = _NICE_STEPS.get(unit)
+    if not steps:
+        return True
+    return any(abs(value / s - round(value / s)) < _EPS for s in steps)
+
+
+def _snaps_exactly(value):
+    return any(abs(value * d - round(value * d)) < _EPS for d in _SNAP_DENOMINATORS)
+
+
+def _in_unit(value, from_unit, to_unit):
+    for family in FAMILIES:
+        if from_unit in family and to_unit in family:
+            return value * family[from_unit] / family[to_unit]
+    return None
+
+
+def display_unit(value, unit):
+    """The unit app.js shows `value` `unit` in after its friendly-unit hops."""
+    visited = {unit}
+    for _ in range(4):
+        up = _STEP_UP.get(unit)
+        if up and up[0] not in visited and value >= up[1] - _EPS:
+            bigger = _in_unit(value, unit, up[0])
+            if bigger is not None and (
+                _on_marking(bigger, up[0]) or (not up[2] and bigger >= 1 - _EPS)
+            ):
+                value, unit = bigger, up[0]
+                visited.add(unit)
+                continue
+        down = _STEP_DOWN.get(unit)
+        if down and down[0] not in visited:
+            smaller = _in_unit(value, unit, down[0])
+            if smaller is not None:
+                if value < down[1] - _EPS or (
+                    value < 1 - _EPS
+                    and not _on_marking(value, unit)
+                    and (_on_marking(smaller, down[0]) or _snaps_exactly(smaller))
+                ):
+                    value, unit = smaller, down[0]
+                    visited.add(unit)
+                    continue
+        break
+    return unit
+
+
 def accuracy_problem(qty, qty_max, unit, factor, text):
-    """None if `text` is an accurate rendering of qty * factor `unit`, else why not."""
+    """None if `text` is an accurate rendering of qty * factor `unit`, else why not.
+
+    For a range, the max must be shown (and accurate) whenever qty_max * factor
+    is displayed in the same unit as the min. Leaving it out is allowed only
+    when the max lands in a different unit (decision OQ5).
+    """
     true = qty * factor
     if text == "a pinch of":
         # Strictly under 1/8 teaspoon: exactly 1/8 is a real spoon marking.
@@ -345,6 +436,12 @@ def accuracy_problem(qty, qty_max, unit, factor, text):
         error = abs(parse_shown(match.group("b")) - qty_max * factor * ratio)
         if error > TOLERANCE:
             return "max off by %.4f %s" % (error, shown_unit)
+    elif qty_max and display_unit(qty_max * factor, unit) == shown_unit:
+        return "max dropped although %r %s stays in %s" % (
+            qty_max * factor,
+            unit,
+            shown_unit or "no unit",
+        )
     return None
 
 
@@ -434,7 +531,49 @@ RENDER_CASES = [
     (1.5, 2.5, "cup", 1 / 3),
     (0.03125, 0, "", 1.0),
     (2.03125, 0, "lb", 1.0),
+    (1, 2, "cup", 2.0),  # "2-4 cups": both ends stay in cups, so the max must show
+    (6, 7, "tbsp", 0.5),  # "3-3 1/2 tablespoons"
+    (2, 3, "", 3.0),  # unitless range "6-9"
+    (6, 12, "tbsp", 1.0),  # max becomes 3/4 cup: dropping it is allowed
+    (0.125, 1, "cup", 1.0),  # min becomes 2 tablespoons, max stays 1 cup
 ]
+
+# R23 / OQ5 on accuracy_problem itself (no browser): when may a range lose its max?
+RANGE_TEXT_CASES = [
+    # (qty, qty_max, unit, factor, text, accurate?)
+    (1, 2, "cup", 2.0, "2-4 cups", True),
+    (1, 2, "cup", 2.0, "2 cups", False),  # reviewer's case: the max was lost
+    (1, 2, "cup", 2.0, "2-5 cups", False),  # max shown but wrong
+    (6, 7, "tbsp", 0.5, "3-3 1/2 tablespoons", True),
+    (6, 7, "tbsp", 0.5, "3 tablespoons", False),
+    (2, 3, "", 3.0, "6-9", True),
+    (2, 3, "", 3.0, "6", False),
+    (2, 3, "clove", 1.0, "2 cloves", False),  # a unit with no hops never moves
+    # The max lands in another unit, so JS legitimately shows only the min.
+    (6, 12, "tbsp", 1.0, "6 tablespoons", True),  # 12 tbsp -> 3/4 cup
+    (0.125, 1, "cup", 1.0, "2 tablespoons", True),  # 1/8 cup -> 2 tbsp; max stays 1 cup
+]
+
+
+@pytest.mark.parametrize(
+    "qty, qty_max, unit, factor, text, accurate",
+    RANGE_TEXT_CASES,
+    ids=lambda v: repr(v),
+)
+def test_accuracy_check_requires_the_range_max_in_the_same_unit(
+    qty, qty_max, unit, factor, text, accurate
+):
+    why = accuracy_problem(qty, qty_max, unit, factor, text)
+    if accurate:
+        assert why is None, why
+    else:
+        assert why is not None, "%r was accepted for %r-%r %s x%r" % (
+            text,
+            qty,
+            qty_max,
+            unit,
+            factor,
+        )
 
 
 @settings(max_examples=300)

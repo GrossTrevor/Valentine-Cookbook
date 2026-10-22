@@ -190,25 +190,32 @@
 
   var DENOMINATORS = [2, 3, 4, 8, 16];
 
+  /* Python's round(): halves go to the even neighbour (units.format_amount). */
+  function roundHalfEven(x) {
+    var r = Math.round(x);
+    if (Math.abs(x - Math.trunc(x)) === 0.5) { r = 2 * Math.round(x / 2); }
+    return r;
+  }
+
   function formatAmount(value) {
     if (value === null || isNaN(value)) { return ""; }
     if (value < 0.0001) { return "0"; }
-    var whole = Math.floor(value + 1e-9);
+    var whole = Math.trunc(value);
     var remainder = value - whole;
     if (remainder < 0.02) { return String(whole); }
 
     var best = null;
     for (var i = 0; i < DENOMINATORS.length; i++) {
       var den = DENOMINATORS[i];
-      var num = Math.round(remainder * den);
+      var num = roundHalfEven(remainder * den);
       if (num <= 0 || num >= den) { continue; }
       var error = Math.abs(remainder - num / den);
-      if (best === null || error < best.error - 1e-12) {
+      if (best === null || error < best.error - 1e-9) {
         best = { error: error, num: num, den: den };
       }
     }
     if (best === null || best.error > 0.035) {
-      return String(Math.round(value * 100) / 100);
+      return value.toFixed(2).replace(/0+$/, "").replace(/\.$/, "");
     }
     var divisor = gcd(best.num, best.den);
     var num2 = best.num / divisor;
@@ -283,25 +290,36 @@
     var presets = Array.prototype.slice.call(scaler.querySelectorAll("[data-factor]"));
     var factor = 1;
 
+    /* What the server wrote, so "as written" shows it exactly. */
+    var written = amounts.map(function (node) {
+      var itemNode = node.parentNode.querySelector(".ing-item");
+      return {
+        amount: node.textContent,
+        item: itemNode ? itemNode.textContent : null
+      };
+    });
+
     function apply() {
-      amounts.forEach(function (node) {
+      var asWritten = Math.abs(factor - 1) < 0.001;
+      amounts.forEach(function (node, index) {
         var qty = parseFloat(node.getAttribute("data-qty"));
         if (isNaN(qty)) { return; }
         var qtyMax = parseFloat(node.getAttribute("data-qty-max"));
         var unit = node.getAttribute("data-unit");
-        node.textContent = renderAmount(qty, isNaN(qtyMax) ? 0 : qtyMax,
-                                        unit, factor);
-        node.classList.toggle("changed", Math.abs(factor - 1) > 0.001);
+        node.textContent = asWritten ? written[index].amount
+          : renderAmount(qty, isNaN(qtyMax) ? 0 : qtyMax, unit, factor);
+        node.classList.toggle("changed", !asWritten);
 
         var itemNode = node.parentNode.querySelector(".ing-item");
         if (itemNode && !unit) {
           if (!itemNode.hasAttribute("data-item")) {
             itemNode.setAttribute("data-item", itemNode.textContent.trim());
           }
-          itemNode.textContent = countedItem(
-            itemNode.getAttribute("data-item"),
-            (isNaN(qtyMax) ? qty : qtyMax) * factor
-          );
+          itemNode.textContent = asWritten ? written[index].item
+            : countedItem(
+              itemNode.getAttribute("data-item"),
+              (isNaN(qtyMax) ? qty : qtyMax) * factor
+            );
         }
       });
 
@@ -440,6 +458,12 @@
       });
     });
   }
+
+  window.ValentineScaling = Object.freeze({
+    formatAmount: formatAmount,
+    unitLabel: unitLabel,
+    renderAmount: renderAmount
+  });
 
   document.addEventListener("DOMContentLoaded", function () {
     setupMisc();

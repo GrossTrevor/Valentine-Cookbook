@@ -1,0 +1,35 @@
+[project]
+name = "valentine-cookbook"
+version = "0.0.0"
+description = "Valentine Cookbook: a small Flask app (not an installable package)."
+requires-python = ">=3.12,<3.13"
+dependencies = [
+    "Flask==3.0.3",
+    "gunicorn==22.0.0",
+    "Pillow==11.3.0",
+    "pillow-heif==1.1.1",
+]
+
+[dependency-groups]
+dev = [
+    "pytest==9.1.1",
+    "hypothesis==6.170.5",
+    "pytest-playwright==0.10.0",
+    "playwright==1.64.0",
+]
+
+[tool.uv]
+package = false
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+testpaths = ["test_cookbook.py", "tests"]
+markers = ["e2e: needs a browser (Chromium) and a live app server"]
+addopts = "--strict-markers"
+
+[tool.ruff]
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "B", "I"]
+ignore = ["E501", "B904"]

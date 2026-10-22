@@ -15,8 +15,16 @@ import time
 from datetime import datetime, timedelta
 
 from flask import (
-    Flask, abort, flash, g, redirect, render_template, request,
-    send_from_directory, session, url_for
+    Flask,
+    abort,
+    flash,
+    g,
+    redirect,
+    render_template,
+    request,
+    send_from_directory,
+    session,
+    url_for,
 )
 
 import db

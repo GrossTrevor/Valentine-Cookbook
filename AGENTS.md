@@ -25,17 +25,20 @@ One flat Flask app, no packages, no build step, no JS framework, nothing loaded 
 - `units.py` — ingredient parsing (qty/unit/item) and fraction formatting (server side).
 - `static/app.js` — browser-side scaling, text-size buttons, live ingredient preview (`/api/parse`).
   It **re-implements** the unit tables and fraction formatting from `units.py`; change both together.
+  `window.ValentineScaling` is tested for parity with `units.py` in `tests/browser/test_scaling_js.py`,
+  and at ×1 the page shows the server's text exactly.
 - `moderation.py` + `blocked_words.txt` — automatic content checks; optional Claude Haiku layer
   (`MODERATION_AI=1` plus `ANTHROPIC_API_KEY`, fails open).
 - `photos.py` — decode, orient, resize, strip metadata, re-encode as JPEG, store under random names.
 - `mailer.py` — sign-in emails: `console` (default, prints the link to the log), `resend`, `smtp`.
 - `templates/` — Jinja pages extending `base.html`. `static/style.css` — all styling.
-- `test_cookbook.py` — unittest suite (parsing, formatting, moderation, photos, migrations, outbound
-  User-Agent, credit names).
+- `test_cookbook.py` — legacy unittest suite (parsing, formatting, moderation, photos, migrations,
+  outbound User-Agent, credit names). `tests/` — pytest suites, see Testing below.
 
 ## Stack and conventions
-- Python 3.12, Flask 3, Pillow + pillow-heif, gunicorn. Deps pinned in `requirements.txt`; there is
-  no pyproject.toml. Stdlib `urllib` for outbound HTTP (no requests).
+- Python 3.12, Flask 3, Pillow + pillow-heif, gunicorn. Deps pinned in `pyproject.toml` + `uv.lock`;
+  `requirements.txt` stays Render's build input and `tests/test_project_config.py` fails if the two
+  drift. Stdlib `urllib` for outbound HTTP (no requests).
 - **New route**: add it inside `_register()` in app.py. Signed-in only → start with
   `redirect_response = require_login()`. Ownership → `is_admin() or row["submitted_by_id"] == user["id"]`.
   Public listings filter `is_hidden = 0`. Template extends `base.html`.
@@ -56,13 +59,18 @@ One flat Flask app, no packages, no build step, no JS framework, nothing loaded 
 - **New table**: `CREATE TABLE IF NOT EXISTS` in schema.sql. **Change to an existing table**: a
   check-before-act step in `db.migrate()` (runs on every start, must be idempotent) plus a test in
   `MigrationTests` that migrates an old-shape database without losing rows.
-- **Testing**: stdlib unittest; `agent-verify fast` runs ruff (pyflakes rules) and every `test*.py`
-  in the root. Tests never hit the network (outbound calls are stubbed by swapping
-  `urllib.request.urlopen`) and set `DATA_DIR` to a temp dir. There are **no route/permission tests**
-  (no Flask test client yet), **no tests for static/app.js**, and **no browser/e2e suite**: UI and
-  authorization changes are untested unless you add tests for them. No CI workflows exist.
-- Run locally: `uv run --no-project --with-requirements requirements.txt flask --app app run
-  --host 127.0.0.1 --port 5055`. Sign-in links print to the terminal (console mail provider).
+- **Testing**: pytest via `uv run pytest`. `agent-verify fast` runs ruff (rules E,F,W,B,I) plus
+  `pytest -m "not e2e"`.
+  - `test_cookbook.py` is the legacy unittest file. `tests/` holds server tests on the Flask test
+    client. Fixtures in `tests/conftest.py`: per-test temp `DATA_DIR`, `mailbox`, `make_user`, real
+    `sign_in`, `make_recipe`, `csrf`, `fresh_db`. Hypothesis property tests use the `cookbook` profile.
+  - `tests/browser/` is the pytest-playwright e2e suite, auto-marked `e2e`, run by `agent-verify e2e`
+    (needs `uv run playwright install chromium`). It uses an in-process server on 127.0.0.1, and its
+    off-origin guard fails any test that requests another origin.
+  - Mail and `urlopen` are stubbed; tests never hit the network.
+  - Vary client IPs with `REMOTE_ADDR`, not X-Forwarded-For.
+  - A failing characterization test lands as `xfail(strict=True, reason="finding: ...")`.
+- Run locally: `uv run flask --app app run --host 127.0.0.1 --port 5055`. Sign-in links print to the terminal (console mail provider).
 
 ## Data and environments
 - Local: SQLite at `data/cookbook.db` plus `data/photos/` (gitignored; created on first import of
@@ -78,6 +86,11 @@ One flat Flask app, no packages, no build step, no JS framework, nothing loaded 
 - Render web service `valentine-cookbook` from the `render.yaml` blueprint, **`autoDeploy: true`: a push
   to `main` deploys production.** Domain valentinecookbook.com. Secrets (`RESEND_API_KEY`,
   `ADMIN_EMAILS`, optional `ANTHROPIC_API_KEY`) live in the Render dashboard.
+- Env: `TRUSTED_PROXY_HOPS` (default 1) is how many proxies in front of the app append to
+  `X-Forwarded-For`; see Known traps.
+- CI: `.github/workflows/ci.yml` runs one `checks` job (ruff, pytest, e2e in Chromium, gitleaks) on
+  every push and PR. Gating Render deploys on it (`autoDeployTrigger: checksPass` in render.yaml) is a
+  pending separate change, made only after CI is green on main. Until then `autoDeploy: true` stands.
 - `Procfile` (Railway) and `Dockerfile` (Fly.io) are documented alternatives, not in use.
 - External services: Resend (sign-in email), Anthropic API (only if `MODERATION_AI=1`).
 - Agents make **no** deploys, including previews.
@@ -104,8 +117,10 @@ One flat Flask app, no packages, no build step, no JS framework, nothing loaded 
   rejected by Cloudflare (error 1010) in front of Resend. This silently killed every sign-in email
   once. Tests enforce it.
 - Changing a unit conversion or fraction rule in `units.py` without the same change in
-  `static/app.js` makes the page show one amount, then a different one once someone scales it.
-- `client_ip()` trusts the first `X-Forwarded-For` value, so the per-IP sign-in rate limit can be
-  spoofed. Known, not yet addressed.
+  `static/app.js` makes the page show one amount, then a different one once someone scales it. The
+  browser parity tests catch that drift.
+- `client_ip()` counts `X-Forwarded-For` entries from the right, `TRUSTED_PROXY_HOPS` of them
+  (default 1). A wrong value either buckets every visitor together or makes the per-IP limit
+  spoofable. Each sign-in request logs `sign-in requested ip=... forwarded_entries=N` so the value
+  can be checked.
 - Timestamps are naive UTC ISO strings compared as text (`expires_at < db.now()`); keep that format.
-- README says 48 tests; there are 50.

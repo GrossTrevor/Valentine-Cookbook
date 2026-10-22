@@ -82,6 +82,9 @@ def create_app():
     )
     app.teardown_appcontext(db.close)
     log.info("mail: %s", mailer.describe())
+    raw_hops = os.environ.get("TRUSTED_PROXY_HOPS")
+    if raw_hops is not None and _int_env("TRUSTED_PROXY_HOPS", 0) == 0:
+        log.info("TRUSTED_PROXY_HOPS=%r is not a positive whole number; using 1", raw_hops)
     _register(app)
     return app
 
@@ -163,10 +166,23 @@ def safe_referrer():
     return url_for("index")
 
 
+def _int_env(name, default):
+    """An integer from the environment, read on every call; invalid or
+    non-positive values fall back to the default."""
+    try:
+        value = int(os.environ.get(name, "").strip())
+    except ValueError:
+        return default
+    return value if value > 0 else default
+
+
 def client_ip():
-    forwarded = request.headers.get("X-Forwarded-For", "")
-    if forwarded:
-        return forwarded.split(",")[0].strip()
+    """The address the nearest trusted proxy saw, counted from the right of
+    X-Forwarded-For (the left side is whatever the client chose to send)."""
+    hops = _int_env("TRUSTED_PROXY_HOPS", 1)
+    chain = [p.strip() for p in request.headers.get("X-Forwarded-For", "").split(",") if p.strip()]
+    if len(chain) >= hops:
+        return chain[-hops]
     return request.remote_addr or "unknown"
 
 
@@ -790,8 +806,11 @@ def _register(app):
             elif existing["is_blocked"]:
                 raise moderation.Rejected("That account cannot sign in.")
 
+            ip = client_ip()
+            forwarded_entries = len([p for p in request.headers.get("X-Forwarded-For", "").split(",") if p.strip()])
+            log.info("sign-in requested ip=%s forwarded_entries=%d", ip, forwarded_entries)
             for bucket, limit, minutes in (
-                ("login-ip:%s" % client_ip(), 20, 60),
+                ("login-ip:%s" % ip, 20, 60),
                 ("login-user:%s" % existing["id"], 6, 60),
             ):
                 if not db.rate_ok(conn, bucket, limit, minutes):
@@ -850,7 +869,13 @@ def _register(app):
         session.permanent = True
         target = session.pop("next_url", None)
         flash("You are signed in. Welcome!", "success")
-        if target and target.startswith("/") and not target.startswith("//"):
+        if (
+            target
+            and target.startswith("/")
+            and not target.startswith("//")
+            and "\\" not in target
+            and not any(ord(c) < 0x20 or ord(c) == 0x7F for c in target)
+        ):
             return redirect(target)
         return redirect(url_for("index"))
 

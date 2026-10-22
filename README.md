@@ -143,7 +143,7 @@ uv run playwright install chromium       # once, for the browser tests
 uv run pytest -m e2e                      # browser tests
 ```
 
-290 tests are collected: ingredient parsing, moderation, photo handling,
+300 tests are collected: ingredient parsing, moderation, photo handling,
 migrations, routes and permissions, and a browser suite that checks the scaling
 in `static/app.js` against `units.py`. GitHub Actions runs the same checks on
 every push.

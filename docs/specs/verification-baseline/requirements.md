@@ -6,6 +6,10 @@
 - Q2 → `TRUSTED_PROXY_HOPS` defaults to **1**; Trevor confirms it from the R37 log line after deploy.
 - Q3 → `autoDeployTrigger: checksPass`; Trevor checks the field against Render's Blueprint
   reference when T13 lands.
+- Planning round (same day): JS `formatAmount` is aligned to `units.format_amount` (R20 holds as
+  written; scaled text changes only at edge values). The post-sign-in redirect also rejects
+  backslash paths (R14). R22's "a pinch of" applies only when scaled. A failing characterization
+  test lands as a strict xfail and is reported. Details in plan.md.
 
 ## Open questions (resolved above; kept for the record)
 

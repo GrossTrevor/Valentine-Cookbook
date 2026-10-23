@@ -65,3 +65,8 @@ pass on current code; a failure there is reported to Trevor, not fixed in the ta
 - [ ] **T13. Gate Render deploys on CI** (R34). Separate PR, only after T11 is green on `main`
   Owns: `render.yaml` (`autoDeploy: true` → `autoDeployTrigger: checksPass`; nothing else).
   Verify: `agent-verify full`; then Trevor's production steps in design.md.
+
+- [x] **T14. A pinch in every volume unit; display_unit drift test** (R22, R23; follow-up after
+  merge). Owns: `static/app.js` (`underAPinch`, `renderAmount`, `friendlyUnit` on
+  `ValentineScaling`), `tests/browser/test_scaling_js.py`, `tests/browser/test_display_unit_mirror.py`.
+  Verify: `agent-verify e2e` and `agent-verify fast`.

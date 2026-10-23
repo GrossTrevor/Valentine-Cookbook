@@ -29,7 +29,8 @@ say out loud — and in the unit they would actually measure with:
 | 1/4 teaspoon nutmeg | 1/8 teaspoon nutmeg | 3/4 teaspoon nutmeg |
 
 A third of a tablespoon becomes 1 teaspoon, not 0.33 tablespoons. Below an
-eighth of a teaspoon it just says "a pinch of". Lines with no number in them
+eighth of a teaspoon, whatever unit the recipe used, it just says "a pinch of"
+(or "a pinch to 1/4 teaspoon" for a range). Lines with no number in them
 ("salt to taste") are left exactly as written rather than guessed at.
 
 **Finding things.** One search box covers recipe names, descriptions,
@@ -143,7 +144,7 @@ uv run playwright install chromium       # once, for the browser tests
 uv run pytest -m e2e                      # browser tests
 ```
 
-300 tests are collected: ingredient parsing, moderation, photo handling,
+315 tests are collected: ingredient parsing, moderation, photo handling,
 migrations, routes and permissions, and a browser suite that checks the scaling
 in `static/app.js` against `units.py`. GitHub Actions runs the same checks on
 every push.

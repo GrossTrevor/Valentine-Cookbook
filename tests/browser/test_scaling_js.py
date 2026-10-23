@@ -6,8 +6,10 @@ R20: ValentineScaling.formatAmount(q) == units.format_amount(q) for q in
      (0, 1000], and ValentineScaling.unitLabel(unit, q) == units.unit_label(unit, q).
      Both take the same arguments in the same order as their Python twins.
 R22: the README's scaling table holds on a real recipe page (÷ 2, × 3 buttons),
-     and below 1/8 teaspoon a scaled amount reads "a pinch of" (factor != 1
-     only; decision OQ3).
+     and a scaled volume under 1/8 teaspoon, in any volume unit, reads "a pinch
+     of" (factor != 1 only; decision OQ3). A range whose min is under 1/8
+     teaspoon but whose max is not reads "a pinch to <max>" (Trevor,
+     2026-10-23: 1/8 teaspoon is the smallest amount shown).
 R23: for any parsed amount and factor in [1/3, 3], renderAmount's text is
      accurate. "Within 0.035 of the displayed unit" is implemented as:
 
@@ -20,7 +22,9 @@ R23: for any parsed amount and factor in [1/3, 3], renderAmount's text is
      the max is checked the same way, and it must be shown whenever the scaled
      max is displayed in the same unit as the min; only a max that lands in
      another unit may be dropped (then only the min is checked). "a pinch of" is
-     accepted only when qty * factor is a volume under 1/8 teaspoon.
+     accepted only when qty * factor (and the max, for a range) is a volume
+     under 1/8 teaspoon, and it is required whenever the min is: no volume
+     under 1/8 teaspoon is ever shown as a number.
 
 Red by design until T9 exposes window.ValentineScaling (and, per OQ1, aligns
 JS formatAmount with units.format_amount).
@@ -48,13 +52,12 @@ README_LINES = [
 ]
 
 
-@pytest.fixture
-def recipe_page(page, sign_in):
-    """A signed-in browser on a freshly added recipe page (loads app.js)."""
+def add_recipe(page, sign_in, lines):
+    """Sign in, add a recipe with these ingredient lines, and open its page."""
     sign_in("scaling.cook@example.com", "Synthetic Scaling Cook")
     page.goto("/add")
     page.fill("#title", "Synthetic Spice Cake")
-    page.fill("#ingredients", "\n".join(README_LINES))
+    page.fill("#ingredients", "\n".join(lines))
     page.fill("#steps", "Mix everything. Bake until done.")
     page.fill("#servings", "4")
     fill_like_a_person(page, "form.recipe-form")
@@ -62,6 +65,12 @@ def recipe_page(page, sign_in):
     page.wait_for_url(re.compile(r"/recipe/[^/]+$"))
     assert page.locator(".recipe [data-scaler]").count() == 1
     return page
+
+
+@pytest.fixture
+def recipe_page(page, sign_in):
+    """A signed-in browser on a freshly added recipe page (loads app.js)."""
+    return add_recipe(page, sign_in, README_LINES)
 
 
 def scaling(page):
@@ -265,6 +274,41 @@ def test_below_an_eighth_teaspoon_is_a_pinch_when_divided_by_three(recipe_page):
     ]  # 1/12 and 1/24 teaspoon
 
 
+SMALL_LINES = [
+    "1/16 tablespoon vanilla",
+    "1/2 milliliter almond extract",
+    "1/8 to 1/2 teaspoon cayenne",
+    "1/16 to 1/8 teaspoon clove",
+    "1/8 to 2 teaspoons pepper",
+]
+
+
+@pytest.fixture
+def small_amounts_page(page, sign_in):
+    return add_recipe(page, sign_in, SMALL_LINES)
+
+
+def test_every_volume_unit_reaches_a_pinch(small_amounts_page):
+    small_amounts_page.click(DIVIDE_2)
+    assert ingredient_texts(small_amounts_page) == [
+        "a pinch of vanilla",  # 1/32 tablespoon = 3/32 teaspoon
+        "a pinch of almond extract",  # 1/4 milliliter, about 1/20 teaspoon
+        "a pinch to 1/4 teaspoon cayenne",
+        "a pinch of clove",  # both ends under 1/8 teaspoon
+        "a pinch to 1 teaspoon pepper",
+    ]
+
+
+def test_small_amounts_as_written_are_untouched(small_amounts_page):
+    """A pinch is a scaling answer only (OQ3): x1 is still the server's text."""
+    small_amounts_page.click(DIVIDE_2)
+    small_amounts_page.get_by_role("button", name="As written").click()
+    texts = ingredient_texts(small_amounts_page)
+    assert texts[0] == "1/16 tablespoon vanilla"
+    assert texts[1] == "1/2 milliliter almond extract"
+    assert all("pinch" not in t for t in texts), texts
+
+
 # --- R23: scaled text is accurate -----------------------------------------------
 
 # Sizes within each family, in that family's smallest unit (US kitchen measures).
@@ -283,6 +327,8 @@ FAMILIES = [
     {"g": 1, "kg": 1000},
 ]
 VOLUME = FAMILIES[0]
+METRIC_VOLUME = FAMILIES[1]
+ML_PER_TSP = 4.92892159375  # one US teaspoon
 LABEL_TO_UNIT = {}
 for _key, (_one, _many) in units.UNIT_NAMES.items():
     LABEL_TO_UNIT[_one] = _key
@@ -399,6 +445,21 @@ def display_unit(value, unit):
     return unit
 
 
+def teaspoons(value, unit):
+    """`value` `unit` in US teaspoons, or None when the unit isn't a volume."""
+    if unit in VOLUME:
+        return value * VOLUME[unit]
+    if unit in METRIC_VOLUME:
+        return value * METRIC_VOLUME[unit] / ML_PER_TSP
+    return None
+
+
+# app.js says "a pinch" strictly under 1/8 teaspoon (with a 1e-6 float margin),
+# so a pinch is allowed just under 1/8 and required a little further below it.
+PINCH_ALLOWED_BELOW = 0.125 - 1e-9
+PINCH_REQUIRED_BELOW = 0.125 - 1e-5
+
+
 def accuracy_problem(qty, qty_max, unit, factor, text):
     """None if `text` is an accurate rendering of qty * factor `unit`, else why not.
 
@@ -407,11 +468,21 @@ def accuracy_problem(qty, qty_max, unit, factor, text):
     when the max lands in a different unit (decision OQ5).
     """
     true = qty * factor
+    tsp = teaspoons(true, unit)
+    # Strictly under 1/8 teaspoon: exactly 1/8 is a real spoon marking.
+    under_a_pinch = tsp is not None and 0 < tsp < PINCH_ALLOWED_BELOW
     if text == "a pinch of":
-        # Strictly under 1/8 teaspoon: exactly 1/8 is a real spoon marking.
-        if unit in VOLUME and true * VOLUME[unit] < 0.125 - 1e-9:
+        top = teaspoons(qty_max * factor, unit) if qty_max else tsp
+        if under_a_pinch and top < PINCH_ALLOWED_BELOW:
             return None
         return "says 'a pinch of' for %r %s" % (true, unit)
+    if text.startswith("a pinch to "):
+        if not (under_a_pinch and qty_max):
+            return "says 'a pinch to' for %r-%r %s" % (true, qty_max * factor, unit)
+        rest = accuracy_problem(qty_max, 0, unit, factor, text[len("a pinch to ") :])
+        return rest and "max: " + rest
+    if tsp is not None and 0 < tsp < PINCH_REQUIRED_BELOW:
+        return "shows %r %s as a number, under 1/8 teaspoon" % (true, unit)
     match = _RENDERED.fullmatch(text)
     if not match:
         return "unreadable amount text"
@@ -538,6 +609,28 @@ RENDER_CASES = [
     (0.125, 1, "cup", 1.0),  # min becomes 2 tablespoons, max stays 1 cup
 ]
 
+# R22 on renderAmount itself: every volume unit gets to a pinch (Trevor,
+# 2026-10-23), and exactly 1/8 teaspoon is still a number.
+PINCH_CASES = [
+    # (qty, qty_max, unit, factor, text)
+    (0.0625, 0, "tbsp", 1 / 3, "a pinch of"),  # 1/48 tbsp = 1/16 tsp
+    (0.002, 0, "cup", 1 / 3, "a pinch of"),
+    (0.02, 0, "floz", 0.5, "a pinch of"),
+    (0.0005, 0, "pint", 1.0, "a pinch of"),
+    (0.0001, 0, "quart", 0.5, "a pinch of"),
+    (0.0001, 0, "gallon", 1 / 3, "a pinch of"),
+    (0.5, 0, "ml", 0.5, "a pinch of"),
+    (0.0005, 0, "liter", 1.0, "a pinch of"),
+    (0.125, 0, "tbsp", 1 / 3, "1/8 teaspoon"),  # exactly 1/8 teaspoon
+    (1, 0, "ml", 1.0, "1 milliliter"),  # about 1/5 teaspoon
+    (0.0625, 0.125, "tsp", 0.5, "a pinch of"),
+    (0.125, 0.5, "tsp", 0.5, "a pinch to 1/4 teaspoon"),
+    (0.125, 6, "tsp", 0.5, "a pinch to 1 tablespoon"),  # max hops to tablespoons
+    (0.5, 2, "ml", 0.5, "a pinch to 1 milliliter"),
+    (0.25, 0, "pinch", 0.5, "1/8 pinch"),  # not a volume: left alone
+]
+RENDER_CASES += [case[:4] for case in PINCH_CASES]
+
 # R23 / OQ5 on accuracy_problem itself (no browser): when may a range lose its max?
 RANGE_TEXT_CASES = [
     # (qty, qty_max, unit, factor, text, accurate?)
@@ -552,6 +645,22 @@ RANGE_TEXT_CASES = [
     # The max lands in another unit, so JS legitimately shows only the min.
     (6, 12, "tbsp", 1.0, "6 tablespoons", True),  # 12 tbsp -> 3/4 cup
     (0.125, 1, "cup", 1.0, "2 tablespoons", True),  # 1/8 cup -> 2 tbsp; max stays 1 cup
+]
+
+# R22 / R23 on accuracy_problem itself: no volume under 1/8 teaspoon as a number.
+PINCH_TEXT_CASES = [
+    # (qty, qty_max, unit, factor, text, accurate?)
+    (0.0625, 0, "tbsp", 1 / 3, "a pinch of", True),
+    (0.0625, 0, "tbsp", 1 / 3, "1/16 teaspoon", False),  # the old output
+    (0.5, 0, "ml", 0.5, "1/4 milliliter", False),
+    (0.125, 0, "tbsp", 1 / 3, "a pinch of", False),  # exactly 1/8 teaspoon
+    (0.125, 0.5, "tsp", 0.5, "a pinch to 1/4 teaspoon", True),
+    (0.125, 0.5, "tsp", 0.5, "1/16-1/4 teaspoon", False),
+    (0.125, 0.5, "tsp", 0.5, "a pinch of", False),  # the max is a real amount
+    (0.125, 0.5, "tsp", 0.5, "a pinch to 1/2 teaspoon", False),  # max off
+    (0.0625, 0.125, "tsp", 0.5, "a pinch to 1/16 teaspoon", False),
+    (0.25, 0.5, "tsp", 0.5, "a pinch to 1/4 teaspoon", False),  # min is 1/8
+    (0.0625, 0, "", 1.0, "a pinch of", False),  # no unit, not a volume
 ]
 
 
@@ -574,6 +683,36 @@ def test_accuracy_check_requires_the_range_max_in_the_same_unit(
             unit,
             factor,
         )
+
+
+@pytest.mark.parametrize(
+    "qty, qty_max, unit, factor, text, accurate",
+    PINCH_TEXT_CASES,
+    ids=lambda v: repr(v),
+)
+def test_accuracy_check_requires_a_pinch_under_an_eighth_teaspoon(
+    qty, qty_max, unit, factor, text, accurate
+):
+    why = accuracy_problem(qty, qty_max, unit, factor, text)
+    if accurate:
+        assert why is None, why
+    else:
+        assert why is not None, "%r was accepted for %r-%r %s x%r" % (
+            text,
+            qty,
+            qty_max,
+            unit,
+            factor,
+        )
+
+
+def test_every_volume_unit_can_be_a_pinch(recipe_page):
+    scaling(recipe_page)
+    texts = recipe_page.evaluate(
+        "(cs) => cs.map(([q, m, u, f]) => window.ValentineScaling.renderAmount(q, m, u, f))",
+        [list(case[:4]) for case in PINCH_CASES],
+    )
+    assert texts == [case[4] for case in PINCH_CASES]
 
 
 @settings(max_examples=300)

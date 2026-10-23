@@ -235,11 +235,26 @@
   }
 
   /* A pinch is the honest answer once you are below an eighth of a teaspoon,
-     which is the smallest marking on any measuring spoon. */
+     which is the smallest marking on any measuring spoon, whatever unit the
+     recipe was written in. */
+  var ML_PER_TSP = 4.92892159375;
+
+  function underAPinch(value, unit) {
+    var teaspoons = null;
+    if (Object.prototype.hasOwnProperty.call(FAMILIES.volume, unit)) {
+      teaspoons = value * FAMILIES.volume[unit];
+    } else if (Object.prototype.hasOwnProperty.call(FAMILIES.metricVolume, unit)) {
+      teaspoons = value * FAMILIES.metricVolume[unit] / ML_PER_TSP;
+    }
+    return teaspoons !== null && teaspoons > 0 && teaspoons < 0.125 - EPS;
+  }
+
   function renderAmount(qty, qtyMax, unit, factor) {
     var scaled = qty * factor;
-    if (unit === "tsp" && scaled > 0 && scaled < 0.125 - EPS && !qtyMax) {
-      return "a pinch of";
+    if (underAPinch(scaled, unit)) {
+      // "1/16-1/4 teaspoon" halved still starts below the smallest spoon.
+      if (!qtyMax || underAPinch(qtyMax * factor, unit)) { return "a pinch of"; }
+      return "a pinch to " + renderAmount(qtyMax, 0, unit, factor);
     }
     var pick = friendlyUnit(scaled, unit);
     var text = formatAmount(pick.value);
@@ -462,7 +477,8 @@
   window.ValentineScaling = Object.freeze({
     formatAmount: formatAmount,
     unitLabel: unitLabel,
-    renderAmount: renderAmount
+    renderAmount: renderAmount,
+    friendlyUnit: friendlyUnit
   });
 
   document.addEventListener("DOMContentLoaded", function () {

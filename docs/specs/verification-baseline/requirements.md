@@ -10,6 +10,9 @@
   written; scaled text changes only at edge values). The post-sign-in redirect also rejects
   backslash paths (R14). R22's "a pinch of" applies only when scaled. A failing characterization
   test lands as a strict xfail and is reported. Details in plan.md.
+- After merge (2026-10-23): 1/8 teaspoon is the smallest amount shown. R22's "a pinch of" applies
+  to every volume unit (US and metric), and a range whose min is below 1/8 teaspoon reads
+  "a pinch to <max>". The R23 unit-rule copy gets a drift test (T14).
 
 ## Open questions (resolved above; kept for the record)
 
@@ -103,7 +106,7 @@ fix are in scope.
   app SHALL return 404 without touching the filesystem.
 
 ### C. Browser-side scaling (`static/app.js`)
-- R19. `static/app.js` SHALL expose its pure scaling functions (`formatAmount`, `unitLabel`,
+- R19. `static/app.js` SHALL expose its pure scaling functions (`formatAmount`, `unitLabel`, `friendlyUnit`,
   `renderAmount`) on a frozen `window.ValentineScaling` object, with no other behavior change.
 - R20. [PROPERTY] For any quantity in (0, 1000] THE browser's `formatAmount` SHALL equal
   `units.format_amount`, and `unitLabel` SHALL equal `units.unit_label` for every unit and quantity.
@@ -111,10 +114,12 @@ fix are in scope.
   ingredient, the same amount text the server rendered. *(Depends on open question 1.)*
 - R22. THE README's scaling examples SHALL hold (3/4 cup halved → 6 tablespoons, tripled → 2 1/4
   cups; 1 1/2 tsp halved → 3/4 teaspoon, tripled → 1 1/2 tablespoons; 1/4 tsp halved → 1/8
-  teaspoon), and below 1/8 teaspoon THE page SHALL say "a pinch of".
+  teaspoon), and WHEN a scaled amount in any volume unit is below 1/8 teaspoon THE page SHALL say
+  "a pinch of" (for a range whose max is not, "a pinch to <max>").
 - R23. [PROPERTY] For any parsed amount and factor in [1/3, 3], the scaled text SHALL, converted
   back to the original unit, be within 0.035 of the displayed unit of `qty × factor`, or be
-  "a pinch of" when that is under 1/8 teaspoon. A wrong number is worse than no number.
+  "a pinch of" when that is under 1/8 teaspoon; no volume under 1/8 teaspoon is shown as a number.
+  A wrong number is worse than no number.
 
 ### D. Browser journeys (e2e, pytest-playwright, marker `e2e`)
 - R24. A visitor SHALL be able to browse, search by a credited name (no account), and filter by

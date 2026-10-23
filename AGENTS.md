@@ -26,7 +26,9 @@ One flat Flask app, no packages, no build step, no JS framework, nothing loaded 
 - `static/app.js` — browser-side scaling, text-size buttons, live ingredient preview (`/api/parse`).
   It **re-implements** the unit tables and fraction formatting from `units.py`; change both together.
   `window.ValentineScaling` is tested for parity with `units.py` in `tests/browser/test_scaling_js.py`,
-  and at ×1 the page shows the server's text exactly.
+  and at ×1 the page shows the server's text exactly. A scaled volume under 1/8 teaspoon, in any
+  volume unit, reads "a pinch of". The R23 accuracy check copies `friendlyUnit`'s unit rules as
+  `display_unit()`; `tests/browser/test_display_unit_mirror.py` fails if the two drift, so change both.
 - `moderation.py` + `blocked_words.txt` — automatic content checks; optional Claude Haiku layer
   (`MODERATION_AI=1` plus `ANTHROPIC_API_KEY`, fails open).
 - `photos.py` — decode, orient, resize, strip metadata, re-encode as JPEG, store under random names.

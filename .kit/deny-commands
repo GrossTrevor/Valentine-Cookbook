@@ -1,0 +1,14 @@
+# Commands agents must never run in this repo (extended regex, one per line), on top of the kit's
+# built-in production guards (prod deploys, publishing, prod migrations, remote databases, .env reads).
+# Matched against the whole command line; anchor scripts to execution so reading them still works.
+# /web-onboard proposes entries. Examples:
+# (^|[;&|(][[:space:]]*)(bash +|sh +)?[^ ;&|]*scripts/seed-prod\.sh
+# (^|[[:space:]])--env[= ]production([[:space:]]|$)
+
+# Any git push: render.yaml has autoDeploy on, so a push to main deploys valentinecookbook.com.
+(^|[;&|(][[:space:]]*)git([[:space:]]+-[Cc][[:space:]]+[^[:space:]]+)*[[:space:]]+push([[:space:]]|$)
+# Render CLI: the production service and the disk that holds every recipe and photo.
+(^|[;&|(][[:space:]]*)render([[:space:]]|$)
+# Real email: resend/smtp mail real sign-in links to whatever address is typed in.
+(^|[;&|([:space:]])MAIL_PROVIDER=['"]?(resend|smtp)
+(^|[;&|(][[:space:]]*)(curl|wget|http|https|xh)[[:space:]][^;&|]*api\.resend\.com

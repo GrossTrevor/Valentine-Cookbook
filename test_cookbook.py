@@ -212,8 +212,9 @@ class PhotoTests(unittest.TestCase):
         cls.tempdir = tempfile.mkdtemp()
         os.environ["DATA_DIR"] = cls.tempdir
         global photos, Image
-        import photos                            # noqa: PLW0603 - after DATA_DIR
-        from PIL import Image                    # noqa: PLW0603
+        from PIL import Image  # noqa: PLW0603
+
+        import photos  # noqa: PLW0603 - after DATA_DIR
 
     @classmethod
     def tearDownClass(cls):

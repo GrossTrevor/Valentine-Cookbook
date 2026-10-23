@@ -123,26 +123,30 @@ Every one of these is optional; see `.env.example` for the full list.
 | `MAIL_PROVIDER` | `console` (default), `resend`, or `smtp`. |
 | `FORCE_HTTPS` | Set to `1` in production so the login cookie is https-only. |
 | `MODERATION_AI` | `1` plus `ANTHROPIC_API_KEY` adds an AI moderation layer. |
+| `TRUSTED_PROXY_HOPS` | How many proxies in front of the app append to X-Forwarded-For; default 1 (Render). |
 
 ---
 
 ## Running it here
 
 ```bash
-python3 -m venv .venv && .venv/bin/pip install -r requirements.txt
-.venv/bin/flask --app app run --port 5055 --debug
+uv sync
+uv run flask --app app run --host 127.0.0.1 --port 5055
 ```
 
-Open http://localhost:5055. With no mail provider configured, sign-in links are
+Open http://127.0.0.1:5055. With no mail provider configured, sign-in links are
 printed to the terminal — copy the link and paste it into the browser.
 
 ```bash
-.venv/bin/python -m unittest test_cookbook -v
+uv run pytest -m "not e2e"                # server and unit tests
+uv run playwright install chromium       # once, for the browser tests
+uv run pytest -m e2e                      # browser tests
 ```
 
-48 tests cover ingredient parsing, moderation, photo handling, and migrations — the parts
-that would quietly ruin the site if they broke. The unit-conversion logic in
-`static/app.js` is exercised separately in the browser.
+300 tests are collected: ingredient parsing, moderation, photo handling,
+migrations, routes and permissions, and a browser suite that checks the scaling
+in `static/app.js` against `units.py`. GitHub Actions runs the same checks on
+every push.
 
 The database and the `photos/` folder are created on first run, and both are
 gitignored — the cookbook starts empty, here and in production.
@@ -259,4 +263,4 @@ it costs $0.25/GB/month.
 | `static/app.js` | Scaling in the browser, text size, live preview. |
 | `static/style.css` | All of the styling. |
 | `templates/` | The pages. |
-| `test_cookbook.py` | Tests for parsing and moderation. |
+| `test_cookbook.py`, `tests/` | The tests. |
